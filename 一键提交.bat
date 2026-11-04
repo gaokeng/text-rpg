@@ -3,10 +3,6 @@ setlocal
 title text-rpg sync
 cd /d "%~dp0"
 
-set "MSG="
-if exist ".commit-msg" set /p MSG=<".commit-msg"
-if not defined MSG set "MSG=chore: sync %date% %time%"
-
 echo.
 echo   text-rpg  --^>  GitHub
 echo   --------------------
@@ -17,13 +13,16 @@ git add -A
 if errorlevel 1 goto failed
 
 echo [2/4] committing ...
-git commit -m "%MSG%" >nul 2>&1
+if exist ".commit-msg" (
+  git commit -F ".commit-msg" >nul 2>&1
+) else (
+  git commit -m "chore: sync %date% %time%" >nul 2>&1
+)
 if errorlevel 1 (
   echo       nothing new, skipped
 ) else (
   echo       committed
 )
-
 if exist ".commit-msg" del ".commit-msg" >nul 2>&1
 
 echo [3/4] syncing with remote ...
