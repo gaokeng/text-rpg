@@ -1,0 +1,18 @@
+# 操作系统与编辑器垃圾文件
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*~
+
+# 依赖与构建产物（本项目是单文件纯前端，正常不会有，列出来防止以后误传）
+node_modules/
+dist/
+build/
+
+# 本地测试与临时脚本
+_check.js
+._test/
+*.log
