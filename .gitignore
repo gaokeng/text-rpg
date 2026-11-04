@@ -16,3 +16,6 @@ build/
 _check.js
 ._test/
 *.log
+
+# 提交说明的临时文件（由 AI 写入，一键提交.bat 读取后删除）
+.commit-msg
