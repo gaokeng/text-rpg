@@ -1,0 +1,2858 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>问道 · 文字轮回</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0d10; --bg2:#12151a; --panel:#141821; --line:#232a33; --line2:#2e3742;
+  --ink:#e6e2d9; --dim:#8b9099; --faint:#596069;
+  --gold:#c9a35c; --gold-dim:#6f5c36;
+  --hp:#b8504a; --mp:#4a7fb0; --exp:#6f9e5c;
+}
+html,body{height:100%}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased; overflow:hidden;
+}
+.app{
+  display:grid;grid-template-columns:minmax(0,1fr) 336px;
+  grid-template-rows:minmax(0,1fr);
+  height:100vh;height:100dvh;max-width:1440px;margin:0 auto;
+  overflow:hidden;
+}
+
+.stage{
+  display:flex;flex-direction:column;
+  min-width:0;min-height:0;height:100%;overflow:hidden;position:relative;
+}
+.hud{
+  flex:none;display:flex;align-items:center;gap:12px;
+  padding:14px 26px;border-bottom:1px solid var(--line);background:#101419;
+}
+.hud h1{font-size:14px;font-weight:500;letter-spacing:.22em;color:var(--gold)}
+.hud .meta{font-size:12px;color:var(--faint);letter-spacing:.08em}
+.hud .spacer{flex:1}
+.btn{
+  font:inherit;font-size:12.5px;color:var(--dim);background:#171c24;
+  border:1px solid var(--line2);border-radius:7px;padding:6px 12px;cursor:pointer;transition:.18s;
+}
+.btn:hover{color:var(--gold);border-color:var(--gold-dim);background:#1c222b}
+.btn.ghost{background:transparent}
+.btn.on{color:var(--gold);border-color:var(--gold-dim)}
+
+.logwrap{flex:1 1 auto;min-height:0;display:flex;position:relative}
+.log{
+  flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  padding:34px 30px 20px;-webkit-overflow-scrolling:touch;
+}
+.log::-webkit-scrollbar{width:6px}
+.log::-webkit-scrollbar-thumb{background:#232a33;border-radius:3px}
+
+.entry{margin-bottom:20px;animation:rise .45s cubic-bezier(.2,.7,.3,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+.entry.narr{
+  font-family:"Songti SC","STSong","SimSun",Georgia,serif;
+  font-size:15.5px;line-height:2.0;color:#d3cec2;white-space:pre-wrap;max-width:660px;
+}
+.entry.you{text-align:right}
+.entry.you span{
+  display:inline-block;background:#1a2029;border:1px solid var(--line2);
+  color:var(--gold);padding:7px 14px;border-radius:11px;font-size:14px;max-width:80%;
+}
+.entry.delta{
+  font-size:12.5px;letter-spacing:.04em;padding-left:2px;
+  margin-top:-12px;margin-bottom:20px;color:#5f666e;
+}
+.entry.delta .up{color:#7fae6a}
+.entry.delta .dn{color:#c07068}
+.entry.delta .sep{color:#3a4048;margin:0 6px}
+.entry.anchor{
+  text-align:center;color:#8a7340;font-size:12px;letter-spacing:.3em;
+  margin:32px 0;position:relative;
+}
+.entry.anchor::before,.entry.anchor::after{
+  content:"";position:absolute;top:50%;width:calc(50% - 66px);height:1px;
+  background:linear-gradient(90deg,transparent,var(--line2));
+}
+.entry.anchor::before{left:0}
+.entry.anchor::after{right:0;transform:scaleX(-1)}
+
+/* ---------- 遭遇卡 ---------- */
+.entry.foe{max-width:660px}
+.foe-card{
+  border:1px solid #2b333d;border-left:2px solid #7a5f34;border-radius:9px;
+  background:linear-gradient(180deg,#151a21,#12161b);padding:14px 16px 12px;
+}
+.foe-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:9px}
+.foe-top .tag{font-size:10.5px;letter-spacing:.28em;color:#8a7340}
+.foe-top b{font-size:16px;color:#efe4cd;font-weight:500;letter-spacing:.08em}
+.foe-top .who{font-size:11.5px;color:#5f6873;letter-spacing:.06em}
+.foe-look{
+  font-family:"Songti SC","STSong","SimSun",serif;
+  font-size:14.5px;line-height:1.95;color:#c6c1b5;margin-bottom:11px;
+}
+.foe-facts{display:flex;flex-direction:column;gap:5px;border-top:1px solid #20262e;padding-top:9px}
+.foe-facts .f{display:flex;gap:10px;font-size:12.5px;line-height:1.7}
+.foe-facts .f .k{width:36px;flex:none;color:#5b636d;letter-spacing:.12em;font-size:11.5px}
+.foe-facts .f .v{color:#aab1ba}
+.foe-facts .f .v.ok{color:#8fb27a}
+.foe-facts .f .v.warn{color:#c9a35c}
+.foe-facts .f .v.bad{color:#cf8b7d}
+
+.actionbar{flex:none;display:flex;align-items:flex-end;gap:10px;padding:4px 28px 12px}
+.actions{
+  flex:1 1 auto;min-width:0;display:flex;flex-wrap:wrap;gap:9px;
+  max-height:34vh;overflow-y:auto;overscroll-behavior:contain;
+}
+.choice{
+  font:inherit;font-size:13.5px;color:#c6ccd4;background:#161b23;
+  border:1px solid var(--line2);border-radius:9px;padding:9px 15px;cursor:pointer;
+  transition:.16s;text-align:left;
+}
+.choice:hover{color:#fff;border-color:var(--gold-dim);background:#1d242e}
+.choice:hover{transform:translateY(-1px)}
+.choice:active{transform:none}
+
+.inputbar{flex:none;display:flex;gap:10px;padding:12px 28px 18px;border-top:1px solid var(--line);background:#0c0f13}
+.inputbar input{
+  flex:1;min-width:0;font:inherit;font-size:14px;color:var(--ink);background:#141821;
+  border:1px solid var(--line2);border-radius:9px;padding:11px 15px;outline:none;transition:.18s;
+}
+.inputbar input:focus{border-color:var(--gold-dim);background:#171c26}
+.inputbar input::placeholder{color:#4d545c}
+.inputbar button{
+  font:inherit;font-size:13.5px;color:#0b0d10;background:var(--gold);
+  border:none;border-radius:9px;padding:0 22px;cursor:pointer;font-weight:500;transition:.18s;
+}
+.inputbar button:hover{background:#d8b46e}
+.inputbar button:disabled{opacity:.4;cursor:default}
+
+.sheet{
+  border-left:1px solid var(--line);background:var(--bg2);
+  min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:20px 20px 40px;
+  display:flex;flex-direction:column;gap:20px;
+}
+.sheet::-webkit-scrollbar{width:5px}
+.sheet::-webkit-scrollbar-thumb{background:#232a33;border-radius:3px}
+
+.who{padding-bottom:16px;border-bottom:1px solid var(--line)}
+.who .name{font-size:19px;font-weight:500;letter-spacing:.06em;color:#efe9dc}
+.who .sub{font-size:12px;color:var(--faint);margin-top:5px;letter-spacing:.06em}
+.who .realm{color:var(--gold);font-size:13px;margin-top:9px;letter-spacing:.1em}
+
+.bars{display:flex;flex-direction:column;gap:11px}
+.barrow{font-size:11.5px;color:var(--dim);letter-spacing:.06em}
+.barrow .lab{display:flex;justify-content:space-between;margin-bottom:5px}
+.barrow .lab i{font-style:normal;color:#a9b0b9}
+.bar{height:5px;background:#1c222b;border-radius:3px;overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:3px;transition:width .4s cubic-bezier(.2,.7,.3,1)}
+.bar.hp>i{background:linear-gradient(90deg,#8f3d38,var(--hp))}
+.bar.mp>i{background:linear-gradient(90deg,#33608a,var(--mp))}
+.bar.exp>i{background:linear-gradient(90deg,#4a6b3d,var(--exp))}
+
+.sect h3{font-size:11px;font-weight:400;color:var(--faint);letter-spacing:.24em;margin-bottom:10px}
+.attrs{display:grid;grid-template-columns:repeat(3,1fr);gap:2px 8px}
+.attr{display:flex;justify-content:space-between;font-size:13px;padding:6px 8px;color:#8f959d;background:#171c24;border-radius:6px}
+.attr b{font-weight:400;color:var(--ink)}
+
+.equip{display:flex;flex-direction:column;gap:6px}
+.equip .row{display:flex;gap:9px;font-size:12.5px;padding:6px 8px;border-radius:6px;background:#171c24}
+.equip .row .k{color:var(--faint);width:34px;flex:none}
+.equip .row .v{color:#c2c8d0;flex:1}
+.equip .row .v.empty{color:#41474f}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{
+  font-size:11.5px;padding:4px 9px;border-radius:20px;background:#1a2029;
+  border:1px solid var(--line2);color:#a9b0b9;
+}
+.chip.buff{border-color:#5a3f6b;color:#c3a4d4;background:#1d1724}
+.chip.debuff{border-color:#6b3f3f;color:#d4a4a4;background:#241818}
+.chip .t{color:#5d6470;margin-left:4px}
+
+.inv{display:flex;flex-direction:column;gap:4px}
+.item{
+  display:flex;align-items:center;gap:8px;font-size:12.5px;padding:6px 8px;
+  border-radius:6px;cursor:pointer;transition:.15s;border:1px solid transparent;
+}
+.item:hover{background:#1a2029;border-color:var(--line2)}
+.item .n{flex:1;color:#c2c8d0}
+.item .q{color:var(--faint);font-size:11.5px}
+.item .use{font-size:11px;color:var(--gold-dim)}
+.item:hover .use{color:var(--gold)}
+.empty-note{font-size:12px;color:#41474f;padding:4px 2px}
+.money{display:flex;justify-content:space-between;font-size:13px;color:#a9b0b9}
+
+/* ---------- 天下 · 行路 ---------- */
+.map{display:flex;flex-direction:column;gap:5px}
+.land{
+  display:flex;align-items:center;gap:8px;font-size:12.5px;
+  padding:7px 9px;border-radius:7px;background:#171c24;border:1px solid transparent;
+}
+.land .n{flex:1;min-width:0;color:#c2c8d0;letter-spacing:.04em}
+.land .d{font-size:10.5px;color:#5b636d;letter-spacing:.06em;flex:none}
+.land.now{background:#1a1611;border-color:#463720}
+.land.now .n{color:var(--gold)}
+.land.now .d{color:#7a663f}
+.land.go{cursor:pointer;transition:.15s}
+.land.go:hover{border-color:var(--gold-dim);background:#1c222b}
+.land.go:hover .n{color:#fff}
+.land.here{display:block;font-size:11.5px;color:#4d545c;padding:0 9px 3px;background:none}
+
+.equip .row{cursor:pointer;transition:.15s}
+.equip .row:hover{background:#1d242d}
+.equip .row .b{font-size:11px;color:#7f8a95;letter-spacing:.04em;flex:none}
+
+/* 当前对手 */
+.foe-live{
+  border:1px solid #3a2f22;border-radius:9px;padding:10px 11px;
+  background:#191410;cursor:help;
+}
+.foe-live .t{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.foe-live .t b{font-size:13.5px;color:#efe4cd;font-weight:500;letter-spacing:.06em}
+.foe-live .t i{font-style:normal;font-size:11px;color:#7d7466;text-align:right}
+.foe-bar{height:5px;background:#241d18;border-radius:3px;overflow:hidden;margin:9px 0 4px}
+.foe-bar>i{display:block;height:100%;background:linear-gradient(90deg,#7a3b34,#c15a4f);transition:width .3s}
+.foe-hp{font-size:11px;color:#8d8579;text-align:right;letter-spacing:.04em}
+.foe-live .line{display:block;font-size:11.5px;color:#8d8579;line-height:1.8;margin-top:7px}
+
+/* 能悬停看说明的地方，给个指针暗示 */
+.attr,.chip,.barrow,.money{cursor:help}
+.item{user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.money b{font-weight:400;color:var(--gold)}
+
+.overlay{
+  position:absolute;inset:0;background:rgba(6,8,10,.95);display:flex;
+  flex-direction:column;align-items:center;justify-content:center;gap:22px;
+  padding:40px;text-align:center;z-index:20;animation:rise .5s both;
+}
+.overlay h2{font-family:"Songti SC","STSong",serif;font-size:26px;font-weight:400;letter-spacing:.3em;color:var(--gold)}
+.overlay p{font-size:13.5px;color:var(--dim);line-height:2;max-width:460px}
+.overlay .totals{display:flex;gap:34px;margin-top:6px}
+.overlay .totals div{font-size:12px;color:var(--faint);text-align:center}
+.overlay .totals b{display:block;font-size:20px;color:var(--ink);font-weight:500;margin-top:4px}
+
+.modal{
+  position:fixed;inset:0;background:rgba(6,8,10,.8);z-index:40;
+  display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.modal .card{
+  width:100%;max-width:420px;background:#141821;border:1px solid var(--line2);
+  border-radius:14px;padding:26px;
+}
+.modal h2{font-size:15px;font-weight:500;color:var(--gold);letter-spacing:.1em;margin-bottom:6px}
+.modal p{font-size:12.5px;color:var(--faint);line-height:1.8;margin-bottom:18px}
+.modal label{display:block;font-size:11.5px;color:var(--dim);margin-bottom:6px;letter-spacing:.1em}
+.modal input{
+  width:100%;font:inherit;font-size:13px;color:var(--ink);background:#0e1218;
+  border:1px solid var(--line2);border-radius:8px;padding:9px 12px;outline:none;margin-bottom:14px;
+}
+.modal .row{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
+
+/* ---------- 开局卷 ---------- */
+.opening{
+  position:absolute;inset:0;z-index:25;background:var(--bg);
+  overflow-y:auto;display:flex;justify-content:center;padding:52px 26px 40px;
+  animation:rise .5s both;
+}
+.opening::-webkit-scrollbar{width:5px}
+.opening::-webkit-scrollbar-thumb{background:#232a33;border-radius:3px}
+.op-card{width:100%;max-width:520px;padding-bottom:20px}
+.op-eyebrow{font-size:11px;letter-spacing:.42em;color:#6f5c36;margin-bottom:20px}
+.op-name{
+  display:flex;align-items:center;gap:12px;
+  font-family:"Songti SC","STSong","SimSun",serif;
+  font-size:32px;font-weight:400;letter-spacing:.18em;color:#efe9dc;line-height:1.3;
+}
+.op-sub{font-size:12px;color:#596069;letter-spacing:.16em;margin-top:12px}
+.op-tags{margin-top:32px;border-top:1px solid var(--line)}
+.op-tag{
+  display:flex;gap:16px;padding:11px 2px;border-bottom:1px solid var(--line);
+  font-size:13px;align-items:center;
+}
+.op-tag .k{
+  width:34px;flex:none;color:#4d545c;letter-spacing:.16em;font-size:11px;
+}
+.op-tag .v{flex:1;min-width:0;color:#c2c8d0;letter-spacing:.04em}
+.op-tag .v.hi{color:var(--gold)}
+
+/* 单项重掷：常驻显示 */
+.reroll{
+  flex:none;padding:0;cursor:pointer;font:inherit;
+  width:24px;height:24px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  border:1px solid #29313b;background:#151a21;
+  color:#6d757e;font-size:11px;line-height:1;letter-spacing:0;
+  opacity:.85;transition:opacity .16s,color .16s,border-color .16s,background .16s;
+}
+.reroll:hover{opacity:1;color:var(--gold);border-color:var(--gold-dim);background:#1e242d}
+.reroll:active{transform:scale(.92)}
+.op-name .reroll{width:24px;height:24px;font-size:11.5px}
+.op-name .reroll.edit{font-size:11.5px}
+.name-input{
+  flex:1;min-width:0;font:inherit;font-size:32px;letter-spacing:.18em;
+  color:#efe9dc;background:transparent;border:none;
+  border-bottom:1px solid #6b5a34;outline:none;padding:0 0 3px;
+}
+.name-input::selection{background:#4a3f24;color:#fff}
+.op-tag.just{animation:rowFlash .85s ease-out}
+@keyframes rowFlash{
+  0%{background:#1c232c}
+  100%{background:transparent}
+}
+.op-quote{
+  margin:30px 0 0;padding:0 0 0 16px;border-left:2px solid #4a3f24;
+  font-family:"Songti SC","STSong","SimSun",serif;
+  font-size:15.5px;line-height:2.0;color:#b6b1a5;
+}
+.op-actions{margin-top:40px;display:flex;gap:12px}
+.op-actions button{
+  flex:1;font:inherit;font-size:13.5px;padding:13px;border-radius:9px;cursor:pointer;
+  transition:.18s;border:1px solid var(--line2);background:#161b23;color:#8b9099;
+}
+.op-actions button:hover{border-color:var(--gold-dim);color:var(--gold);background:#1c222b}
+.op-actions button.primary{
+  background:var(--gold);color:#0b0d10;border-color:var(--gold);font-weight:500;
+}
+.op-actions button.primary:hover{background:#d8b46e;color:#0b0d10}
+.op-hint{margin-top:16px;text-align:center;font-size:11.5px;color:#3f464e;letter-spacing:.08em}
+
+/* 回到最新 */
+.jump{
+  flex:none;display:none;font:inherit;font-size:12.5px;letter-spacing:.06em;
+  color:#0b0d10;background:var(--gold);border:none;border-radius:9px;
+  padding:9px 14px;cursor:pointer;white-space:nowrap;
+  box-shadow:0 6px 18px rgba(0,0,0,.45);animation:rise .25s ease-out both;
+}
+.jump.on{display:inline-block}
+.jump:hover{background:#d8b46e}
+
+/* 悬停详情 */
+.tip{
+  position:fixed;z-index:70;max-width:320px;padding:11px 13px;border-radius:9px;
+  background:#141920;border:1px solid #2b333d;color:#a7aeb7;
+  font-size:12px;line-height:1.85;letter-spacing:.02em;
+  opacity:0;pointer-events:none;transition:opacity .14s;
+  box-shadow:0 12px 34px rgba(0,0,0,.55);
+}
+.tip.on{opacity:1}
+.tip b{display:block;color:#e2d8c4;font-weight:500;font-size:12.5px;letter-spacing:.06em;margin-bottom:5px}
+.tip .line{display:block}
+.tip .line .k{color:#656d77;margin-right:9px;letter-spacing:.08em}
+
+/* ---------- 行内提示 / 输入反馈 ---------- */
+.flash{
+  flex:none;display:none;padding:2px 28px 10px;
+  font-size:13px;color:#e0a184;font-weight:500;letter-spacing:.04em;line-height:1.7;
+}
+.flash.on{display:block;animation:flashIn .2s ease-out}
+@keyframes flashIn{from{transform:translateY(4px)}to{transform:none}}
+@keyframes nudge{0%,100%{transform:none}22%{transform:translateX(-5px)}66%{transform:translateX(5px)}}
+#cmd.err{animation:nudge .3s;border-color:#8a4136}
+
+.mobile-toggle{display:none}
+@media(max-width:820px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .sheet{
+    position:fixed;top:0;right:0;bottom:0;width:290px;z-index:30;
+    transform:translateX(100%);transition:transform .28s ease;box-shadow:-12px 0 40px rgba(0,0,0,.6);
+  }
+  .sheet.open{transform:none}
+  .mobile-toggle{display:inline-block}
+  .log{padding:24px 18px 12px}
+  .entry.narr{font-size:15px}
+  .hud{padding:12px 14px;gap:8px}
+  .hud .meta{display:none}
+  .hud h1{letter-spacing:.14em}
+  .btn{padding:6px 10px;font-size:12px}
+  .flash{padding:0 16px 8px}
+  .actionbar{padding:2px 14px 10px}
+  .inputbar{padding:10px 14px 16px}
+  .inputbar input{padding:11px 12px;font-size:13.5px}
+  .inputbar button{padding:0 16px}
+  /* 窄屏：让「回到最新」单独占一行，不挤占选项宽度 */
+  .actionbar{flex-wrap:wrap}
+  .actions{flex:1 1 100%;order:2}
+  .jump{order:1;margin-left:auto;margin-bottom:8px;padding:8px 12px;font-size:12px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <section class="stage">
+    <div class="hud">
+      <h1>问道</h1>
+      <span class="meta" id="meta">第 1 世</span>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="aiBtn">接入 AI</button>
+      <button class="btn ghost mobile-toggle" id="toggleSheet">状态</button>
+      <button class="btn" id="restart">重新轮回</button>
+    </div>
+    <div class="logwrap">
+      <div class="log" id="log"></div>
+    </div>
+    <div class="flash" id="flash"></div>
+    <div class="actionbar">
+      <div class="actions" id="choices"></div>
+      <button class="jump" id="jump">↓ 回到最新</button>
+    </div>
+    <form class="inputbar" id="inputbar" autocomplete="off">
+      <input id="cmd" placeholder="你要做什么？随意写，比如「翻他的包袱」">
+      <button type="submit" id="sendBtn">行动</button>
+    </form>
+  </section>
+
+  <aside class="sheet" id="sheet">
+    <div class="who">
+      <div class="name" id="pName">—</div>
+      <div class="sub" id="pOrigin">—</div>
+      <div class="realm" id="pRealm">凡人</div>
+    </div>
+    <div class="bars">
+      <div class="barrow" data-tip="bar:hp"><div class="lab"><span>气血</span><i id="hpTxt">0 / 0</i></div><div class="bar hp"><i id="hpBar" style="width:100%"></i></div></div>
+      <div class="barrow" data-tip="bar:mp"><div class="lab"><span>灵力</span><i id="mpTxt">0 / 0</i></div><div class="bar mp"><i id="mpBar" style="width:100%"></i></div></div>
+      <div class="barrow" data-tip="bar:exp"><div class="lab"><span>修为</span><i id="expTxt">0 / 0</i></div><div class="bar exp"><i id="expBar" style="width:0%"></i></div></div>
+    </div>
+    <div class="sect foepanel" id="foePanel" style="display:none">
+      <h3>当前对手</h3>
+      <div class="foe-live" id="foeCard" data-tip="foe">
+        <div class="t"><b id="foeName">—</b><i id="foeMeta">—</i></div>
+        <div class="foe-bar"><i id="foeBar" style="width:100%"></i></div>
+        <div class="foe-hp" id="foeHp">0 / 0</div>
+        <div class="line" id="foeNote">—</div>
+      </div>
+    </div>
+    <div class="sect"><h3>天下</h3><div class="map" id="mapList"></div></div>
+    <div class="sect"><h3>属性</h3><div class="attrs" id="attrs"></div></div>
+    <div class="sect"><h3>玄妙</h3><div class="chips" id="buffs"></div></div>
+    <div class="sect"><h3>装备</h3><div class="equip" id="equip"></div></div>
+    <div class="sect"><h3>行囊</h3><div class="inv" id="inv"></div></div>
+    <div class="sect"><div class="money" data-tip="money"><span>灵石</span><b id="money">0</b></div></div>
+  </aside>
+</div>
+
+<script>
+/* =====================================================================
+   工具
+   ===================================================================== */
+const $ = s => document.querySelector(s);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+let R = Math.random;
+const rnd = (a,b) => a + Math.floor(R() * (b - a + 1));
+const pick = arr => arr[Math.floor(R() * arr.length)];
+const chance = p => R() < p;
+
+/* =====================================================================
+   资料
+   ===================================================================== */
+const SURNAMES = ['沈','谢','陆','裴','顾','燕','柳','江','苏','孟','祁','宋'];
+const GIVEN = ['青','辞','砚','照','野','棠','舟','坡','刃','烬','川','榆','戌','寒','拾'];
+
+/* ---------- 世道：决定大环境、物价、危险程度 ---------- */
+const WORLDS = [
+  {n:'兵荒', money:-2, danger:1.30,
+   t:'北边的仗打了三年。逃难的人一路往南，路边的村子空了一半，剩下的都学会了先关门、再问话。'},
+  {n:'太平', money:3, danger:0.85,
+   t:'年景还算好。官道上有人敢走夜路，客栈的灯点到三更才灭。'},
+  {n:'妖患', money:0, danger:1.25,
+   t:'山里的东西越来越多。县里贴的告示贴到第三张，就没人再撕了——撕了也没用。'},
+  {n:'大旱', money:-3, danger:1.10,
+   t:'第三年没下透雨。井越打越深，最后打上来的水是咸的。'},
+  {n:'疫', money:-1, danger:1.15,
+   t:'去年秋天起，过路的人开始咳嗽。咳嗽的人后来都不咳嗽了。'},
+  {n:'灭门余波', money:0, danger:1.20,
+   t:'半年前，山上的剑派一夜之间没了。官府说是走火。这话没人信，也没人敢不信。'},
+  {n:'祭祀月', money:-1, danger:1.00,
+   t:'今年是甲子年。镇上要办大祭，家家出人，出不来人的出钱。'},
+  {n:'开河', money:1, danger:1.10,
+   t:'官家要开一条新河，征了三千民夫。河还没挖到一半，已经埋了两百个。'},
+  {n:'蝗', money:-2, danger:1.05,
+   t:'今年夏天先旱，后来来了蝗虫。蝗虫过完，地里连草根都没剩下。'},
+  {n:'征丁', money:-1, danger:1.15,
+   t:'北边在死人，就得从南边抓人。抓人的车从镇上过，一次三辆，车厢是封死的。'},
+  {n:'商路断', money:-2, danger:1.10,
+   t:'山道塌了半年，没人修。盐价翻了三倍，最近开始有人用别的法子贩盐。'},
+  {n:'春汛', money:0, danger:0.95,
+   t:'春汛来得早，退得也快。水退之后，河滩上多了很多不该有的东西。'}
+];
+
+/* ---------- 地界：有名字、有具体样子的地方 ---------- */
+const LANDS = [
+  {n:'青牛镇', type:'镇', t:'青牛镇有一条主街，街上有药铺、铁匠铺，和两家卖同一种面的馆子。两家都不承认对方是同行。'},
+  {n:'白水渡', type:'水', t:'白水渡是两条河汇成一条的地方。渡口边三十几户人家，靠摆渡和补船过日子。'},
+  {n:'黑石岭', type:'山', t:'黑石岭的石头是黑的，太阳一晒就发烫。岭上从前有匪，现在匪走了，窝还在。'},
+  {n:'枯木谷', type:'山', t:'枯木谷里没有活树。老人说是六十年前烧的，年轻人说本来就没有。'},
+  {n:'无相墟', type:'镇', t:'无相墟原是一座城。现在只剩墙根，和一排没人认领的坟。'},
+  {n:'三岔驿', type:'镇', t:'三岔驿是三条官道的交点。驿站的马死了两匹，剩下那一匹也不肯跑夜路。'},
+  {n:'落霞关', type:'镇', t:'落霞关的关墙塌了一角。守关的兵只查进关的，不查出关的。'},
+  {n:'孤云坳', type:'山', t:'孤云坳在半山腰，常年有雾。雾散的时候，能看见对面山上另一座一模一样的村子。'},
+  {n:'长庚渡', type:'水', t:'长庚渡的船家有个规矩：天黑之后不渡人。问为什么，他们只说规矩。'},
+  {n:'断魂岭', type:'山', t:'断魂岭的路只有一条，两边是崖。走过的人都说，路上不该有那么多双鞋。'},
+  {n:'沙河铺', type:'镇', t:'沙河铺只有一条街，街面全是沙。风大的时候，招牌响一夜，第二天掉一半。'},
+  {n:'铁门堡', type:'镇', t:'铁门堡的城门是铁的，从里面闩上，外面撞不开。堡里的人睡得比别处早。'},
+  {n:'青崖', type:'山', t:'青崖的石壁是青的，雨水顺着往上走。山下的人管这叫「倒流」，说见着了要低头。'},
+  {n:'望北坡', type:'山', t:'望北坡上什么都没有。老人说这坡是留给看得远的人站的。'},
+  {n:'芦花荡', type:'水', t:'芦花荡一站进去就看不见天。撑船的人靠数芦苇分方向，数错一处就出不来了。'},
+  {n:'碎冰滩', type:'水', t:'碎冰滩冬天结冰，夏天不化。踩上去能听见底下有东西在动。'}
+];
+/* ---------- 身世：自带初始物、钱、属性，以及「此刻」的三个版本 ---------- */
+const BIRTHS = [
+  {n:'药庐学徒', land:'镇', bonus:{悟:1}, items:[['疗伤药',2]], money:0,
+   who:'你在{{地}}的药庐里长大。认得三百种草药的苦味，却认不全一百个字。',
+   token:'你身上常年一股苦味，洗不掉。师父说这味道能救命，也能招祸。',
+   scenes:[
+     '天没亮你就被叫起来。药庐的门是开着的，师父不在。灶上的水烧干了，壶底烧穿了一个洞。',
+     '你在后院晒药。晒到第三筛，发现少了一味——昨天还在，今天连抽屉都被人抽走了。',
+     '有人半夜敲门，敲三下、停一下。师父说过，这样敲的是要命的生意。他没起来，你起来了。'
+   ]},
+  {n:'落第书生', land:null, bonus:{悟:2,力:-1}, items:[['残页']], money:2,
+   who:'你第三次落第。回乡的船在半途沉了，只有你抱着一箱书，自己游上了岸。',
+   token:'那箱书泡烂了一半。剩下的你晒了七天，纸都翘着边。',
+   scenes:[
+     '你在破庙里把书一页页摊开晾。风翻到某一页，停住了，怎么吹都不动。',
+     '客栈的伙计认出了你，说：「又是您。」他给你留了最便宜的一间，靠马棚。',
+     '有人出十两银子买你那箱泡烂的书。你说不卖。他加到了三十两。'
+   ]},
+  {n:'匪窝孤儿', land:'山', bonus:{力:2,敏:1}, items:[['破旧短刀']], money:3,
+   who:'你在{{地}}的匪窝里长大。七岁学会磨刀，十二岁学会闭嘴。',
+   token:'你左手虎口有一道疤，是磨刀磨出来的。你的手比同龄人硬。',
+   scenes:[
+     '窝里昨天散了。天亮的时候，寨子只剩你和三个死人，还有一锅凉透的粥。',
+     '你下山替人跑腿。回来的路上，看见寨子的方向在冒烟。你站着看了一会儿，然后继续往回走。',
+     '有人在背后拍了三下。你转身，那人已经退了五步，笑着说：「不错，没吓着。」'
+   ]},
+  {n:'剑派遗孤', land:'山', bonus:{力:1,敏:1}, items:[['铁剑']], money:0,
+   who:'后山上的门派去年冬天被灭。你从狗洞里爬出来，带走了师父那半柄断剑。',
+   token:'断剑只有半截，刃口还在。你不肯扔，也不肯让人看。',
+   scenes:[
+     '你在破庙里把断剑擦到发亮，然后又插回鞘里。鞘是空的，剑只有半截。',
+     '路上有人拦你，问：「山上的人，还有活的吗？」你说不知道。他没再问。',
+     '你梦见师父在磨那把断剑。醒来的时候，手在抖。'
+   ]},
+  {n:'守墓人', land:null, bonus:{悟:1,敏:1}, items:[['护身玉']], money:4,
+   who:'你在{{地}}外守了十年坟。坟里的人，没一个姓你的姓。',
+   token:'你有一本册子，记着每座坟的方位。最后一页是空的。',
+   scenes:[
+     '昨晚有一块碑倒了。你去看，碑面上的字被雨水泡得像新写的。',
+     '有人在坟地外围站了一夜。天亮的时候他走了，留下三炷没点的香。',
+     '你翻到册子的最后一页。上面有字，不是你的笔迹。'
+   ]},
+  {n:'猎户', land:'山', bonus:{敏:2}, items:[['干粮',3],['蛇胆']], money:2,
+   who:'你是{{地}}一带的猎户。箭法一般，但你知道什么能吃、什么碰不得。',
+   token:'你的弓是自己做的，弦换过十七次。',
+   scenes:[
+     '你在林子里下了六个套。今天去看，六个全空了，但有一个套上留着血，往上拖了很远。',
+     '雪地上有一串脚印，走到一半就没了。不是飞了，是脚印自己断了。',
+     '你打到一只不认识的兽。它死之前看了你一眼，那眼神不像兽。'
+   ]},
+  {n:'船工', land:'水', bonus:{力:1,敏:1}, items:[['干粮',2]], money:5,
+   who:'你在{{地}}撑了八年船。见过太多人上船，也见过一些人没下船。',
+   token:'你手上有两道很深的绳痕，磨了八年，磨不平了。',
+   scenes:[
+     '昨晚最后一趟，船上多了一个人。你没看清他是什么时候上来的。',
+     '水退了。河滩上露出一只箱子，锁是开的，里面是空的。',
+     '有个客人给了你双倍的钱，只求你一件事：别问他在哪儿下船。'
+   ]},
+  {n:'渔家子', land:'水', bonus:{敏:1,悟:1}, items:[['干粮',2],['蛇胆']], money:2,
+   who:'你在水边长大。会看水色，知道哪片水面底下有东西。',
+   token:'你手心有一层洗不掉的青灰，是常年浸在水里的颜色。',
+   scenes:[
+     '今早收网，网上来的不是鱼。你解开网，把那东西放回水里，它没有游走。',
+     '水退了半尺。你踩着泥往河心走，走到脚踝深的地方，泥里有一块硬东西。',
+     '有条船在河心停了三天。没有人上，也没有人下。'
+   ]},
+  {n:'逃奴', land:null, bonus:{敏:2,力:1}, items:[['干粮']], money:0,
+   who:'你从某座大宅的后门跑出来，脚踝上还留着锁链磨出的疤。',
+   token:'你走路的步幅和别人不一样——锁链戴久了，腿会记住。',
+   scenes:[
+     '你听见后面有狗叫。不知道是不是追你的，但你不会停下来确认。',
+     '你在河边洗脚，看见脚踝上的疤。三年了，还是那个颜色。',
+     '有人在背后叫了一个名字。你下意识回头，然后才想起来，那不是你现在的名字。'
+   ]},
+  {n:'墙根乞儿', land:'镇', bonus:{悟:1,敏:1}, items:[['干粮',2]], money:1,
+   who:'你在{{地}}的墙根下长大，靠听人说话活着。',
+   token:'你能从脚步声里分出三种人：赶路的、找人的、找你的。',
+   scenes:[
+     '今天墙根下少了一个人。他的位置空着，铺盖还在。',
+     '你听见两个人在说话，说到一半改成耳语。你记住了那个耳语的节奏。',
+     '有人把半个馒头放在你面前，然后蹲下来，一直看着你。'
+   ]},
+  {n:'更夫', land:'镇', bonus:{悟:1,力:1}, items:[['干粮',2]], money:3,
+   who:'你打了六年更。{{地}}的每一条巷子，你闭着眼都能走。',
+   token:'你的梆子上有一道裂缝，敲起来第二下会哑。',
+   scenes:[
+     '三更天，你在西巷听见有人跟着你敲梆子。你停下来，它也多敲了一下。',
+     '今晚有一户的灯一直亮着。你敲过两趟，第三趟的时候灯灭了，门开了。',
+     '你打了六年更，第一次看见有人在这个时候从城门进来。'
+   ]},
+  {n:'柴门幺子', land:'山', bonus:{力:2}, items:[['干粮',3]], money:1,
+   who:'你是家里第七个孩子。分到你手上的，只有一把斧头和一间漏雨的柴房。',
+   token:'斧柄上有你父亲刻的一个字，刻得很浅，快磨没了。',
+   scenes:[
+     '兄长们分家，从大到小挑。轮到你的时候，只剩斧头和柴房。你没说话。',
+     '你上山砍柴，砍到一棵不该砍的树。树心里有东西在响。',
+     '家里来了个客人。他看了你一眼，对你父亲说：「这个孩子，我要了。」'
+   ]},
+  {n:'义庄杂役', land:'镇', bonus:{悟:1}, items:[['护身玉']], money:1,
+   who:'你在{{地}}的义庄里帮工。给死人擦身、换衣、封棺，一天三个铜板。',
+   token:'你不怕死人。你怕的是那些送来时眼睛还睁着的。',
+   scenes:[
+     '有一口棺材没封。你去封，掀开盖，里面是空的——但板子是湿的。',
+     '送来一具女尸，手上戴着和你娘一样的镯子。你不敢细看，也不敢不细看。',
+     '账房说这个月多了一具，报不上名。让你自己看着办。'
+   ]},
+  {n:'采药人', land:'山', bonus:{敏:1,悟:1}, items:[['疗伤药']], money:2,
+   who:'你在{{地}}采药。哪座崖上长着什么，你比药铺掌柜清楚。',
+   token:'背篓底下有个夹层。里头是师父没来得及说完的那张方子。',
+   scenes:[
+     '背阴的石缝里长着一株不该长在这儿的药。它长得太好了。',
+     '下山时背篓轻了。倒出来数，少了一味最贵的。',
+     '崖上垂下来一根绳子，不是你放的。你顺着往上看，上面有人。'
+   ]},
+  {n:'织户女', land:'镇', bonus:{敏:1,悟:1}, items:[['粗布衣']], money:2,
+   who:'你织了十年布。手快，眼也快——一匹布里哪根线是接的，你一眼就看得出来。',
+   token:'右手食指上有一道勒痕，常年不消。',
+   scenes:[
+     '这月交上去的布退回来三匹，说是织错了。你数了数，只有两匹错。',
+     '有人拿一块料子来，让你照着织。那种颜色，你在任何一口染缸里都没见过。',
+     '夜里机杼自己响了两声。你停了手，它也停了。'
+   ]},
+  {n:'皂隶', land:'镇', bonus:{力:1}, items:[['破旧短刀']], money:4,
+   who:'你在{{地}}衙门里当差。抓过人，也放过人，两样都收钱。',
+   token:'腰牌背面刻着一个字，磨掉了一半。谁也没问过。',
+   scenes:[
+     '上头让抓一个人，图贴到你手上。图上那位，三天前请你喝过酒。',
+     '牢里死了一个。按规矩要报，但报上去的名字，和里面躺着的不一样。',
+     '有人半夜敲衙门的门，说要自首。他手里提着一颗头。'
+   ]}
+];
+
+const TALENTS = [
+  {n:'过目不忘', t:'看过的字，一辈子忘不掉。', ops:[{t:'attr',k:'悟',v:2}]},
+  {n:'天生神力', t:'别人要两只手抬的东西，你一只手就能拎起来。', ops:[{t:'attr',k:'力',v:3}]},
+  {n:'一身药骨', t:'药力在你体内走得比常人快一倍。', ops:[{t:'flag',k:'药引',v:true}]},
+  {n:'鼻通阴阳', t:'你能闻出活人和死人的区别。', ops:[{t:'attr',k:'悟',v:1}]},
+  {n:'命硬', t:'该死的时候，总差那么一口气。', ops:[{t:'flag',k:'命硬',v:true}]},
+  {n:'见血封喉', t:'你知道人身上哪里最软。', ops:[{t:'flag',k:'暴击',v:true}]},
+  {n:'剑骨', t:'握剑的时候，手不抖。', ops:[{t:'flag',k:'剑骨',v:true}]},
+  {n:'亲和妖物', t:'野兽见了你，会先歪一下头。', ops:[{t:'flag',k:'妖亲',v:true}]},
+  {n:'铁胃', t:'馊的、生的、带土的，你都能咽下去。', ops:[{t:'flag',k:'铁胃',v:true}]},
+  {n:'夜眼', t:'天黑之后，你看得比白天清楚。', ops:[{t:'attr',k:'悟',v:1},{t:'attr',k:'敏',v:1}]},
+  {n:'记路', t:'走过的路，闭着眼也能退回去。', ops:[{t:'attr',k:'敏',v:1},{t:'flag',k:'记路',v:true}]},
+  {n:'皮实', t:'挨打的时候，你先想的是手疼不疼。', ops:[{t:'attr',k:'力',v:2}]},
+  {n:'口舌', t:'三句话能让陌生人把家底说出来。', ops:[{t:'attr',k:'悟',v:1},{t:'money',v:3}]},
+  {n:'心静', t:'越是要命的时候，你手越不抖。', ops:[{t:'attr',k:'悟',v:2}]}
+];
+
+/* ---------- 隐患：这一世埋着的那根刺。每条都真的会咬人 ---------- */
+const MARKS = [
+  {n:'寒斑', t:'你心口有一块化不开的寒斑。每逢子时，它就开始往骨头里钻。',
+   cost:'每 6 回合，气血 -3', drift:{every:6, hp:-3}},
+  {n:'旧伤', t:'你左肋下有一道旧伤，每到月圆，就自己裂开一点。',
+   cost:'受到的伤害 +20%', mods:{dmgIn:1.20}},
+  {n:'名册', t:'有人在某本册子上记着你的名字。你一直不知道是谁。',
+   cost:'遇敌概率 +25%', mods:{danger:1.25}},
+  {n:'姓氏', t:'你不肯说自己的姓。有人问起，你就笑一笑。',
+   cost:'起始灵石 -4', startOps:[{t:'money', v:-4}]},
+  {n:'旧剑', t:'你带着一柄不肯出鞘的旧剑。它在夜里会轻轻响。',
+   cost:'每 4 回合，灵力 -2', drift:{every:4, mp:-2}},
+  {n:'影', t:'有时候，你的影子里会多出一个人。你从不回头看。',
+   cost:'逃跑成功率 -25%', mods:{flee:-0.25}},
+  {n:'债', t:'你欠一个人三十两银子。他不催，但你知道他记得。',
+   cost:'起始灵石 -6', startOps:[{t:'money', v:-6}]},
+  {n:'名字', t:'你不叫现在这个名字。真的那个，说出来会有人来找你。',
+   cost:'遇敌概率 +15%', mods:{danger:1.15}},
+  {n:'耳鸣', t:'右耳里从早到晚有一声长鸣，像很远的地方有人在拉一根弦。',
+   cost:'遇敌概率 +10%（听不见身后的脚步）', mods:{danger:1.10}},
+  {n:'无籍', t:'你没有户籍。过关、住店、领粮，样样都要多塞钱。',
+   cost:'起始灵石 -3', startOps:[{t:'money', v:-3}]},
+  {n:'烙痕', t:'你右颊上有一块烙痕，是某个记号的一半。藏在头发里，藏不严。',
+   cost:'遇敌概率 +20%', mods:{danger:1.20}},
+  {n:'药瘾', t:'你靠一味药撑着。断了三天，手就开始抖。',
+   cost:'每 5 回合，气血 -2', drift:{every:5, hp:-2}},
+  {n:'断指', t:'左手小指少了一节。你说是砍柴砍的，没人信。',
+   cost:'敏捷 -1', startOps:[{t:'attr', k:'敏', v:-1}]},
+  {n:'哑疤', t:'你喉咙上有道疤。说话没有问题，只是每句话都要多想一想。',
+   cost:'悟性 -1', startOps:[{t:'attr', k:'悟', v:-1}]}
+];
+
+const REALMS = ['凡人','炼气一层','炼气二层','炼气三层','炼气四层','炼气五层','炼气六层','筑基初期','筑基中期','金丹初期'];
+const REALM_EXP = [40,90,160,250,360,500,680,900,1200,99999];
+
+/* 突破不是弹一个「升级」，是身体里真发生了一件事 */
+const REALM_LINE = {
+  '炼气一层':'那口气在丹田里转了一圈，没有散。你知道它不会再散了。',
+  '炼气二层':'气比先前足了一线。抬手的时候，指尖有一点不属于血的温度。',
+  '炼气三层':'夜里能听见自己血走的声音。走急了它乱，站定了它就顺。',
+  '炼气四层':'你开始明白「养」和「用」是两回事。用出去的，得先养回来。',
+  '炼气五层':'气走到指尖会停一下，像在等你想清楚拿它做什么。',
+  '炼气六层':'炼气的尽头是一堵墙。你摸到了墙，墙是凉的。',
+  '筑基初期':'那堵墙塌了一角。气落进一个新的地方，沉下去，不再浮起来。',
+  '筑基中期':'气沉得更深。你站在那儿，风绕着你走。',
+  '金丹初期':'丹田里结了东西。很硬，很小，跳得像第二颗心。'
+};
+
+const ITEMS = {
+  '疗伤药':   {heal:26},
+  '回气散':   {mp:22},
+  '干粮':     {heal:9},
+  '蛇胆':     {heal:14, mp:10},
+  '引气符':   {mp:40},
+  '破旧短刀': {slot:'兵器', atk:3},
+  '铁剑':     {slot:'兵器', atk:6},
+  '青锋剑':   {slot:'兵器', atk:11},
+  '粗布衣':   {slot:'护体', def:1},
+  '皮甲':     {slot:'护体', def:4},
+  '护身玉':   {slot:'佩物', def:2, mpMax:8},
+  '残页':     {},
+  '星陨铁·鸣':{}
+};
+
+/* =====================================================================
+   状态
+   ===================================================================== */
+let S = null, pending = null, busy = false, openingRolls = 0;
+
+/* 开局分两步：先掷一份纯数据的「设定」(spec)，再由设定构建完整状态。
+   这样任何一项都能单独重掷，而派生的属性、气血、行囊、灵石会跟着重算。 */
+function rollSpec(){
+  const land = pick(LANDS);
+  const pool = BIRTHS.filter(b => !b.land || b.land === land.type);
+  return {
+    seed: Math.floor(Math.random() * 1e9),
+    name: pick(SURNAMES) + pick(GIVEN),
+    world: pick(WORLDS),
+    land,
+    originRaw: pick(pool.length ? pool : BIRTHS),
+    talent: pick(TALENTS),
+    curse: pick(MARKS)
+  };
+}
+
+/* 从一处地界出发，脚下摆着三条路。路程远近由地形决定，不是随口报的 */
+function dayFor(from, to){
+  if (to.type === from.type) return '半日';
+  if (to.type === '山' || from.type === '山') return '两日';
+  return '一日';
+}
+
+function rollRoutes(s){
+  const others = LANDS.filter(l => l.n !== s.land.n);
+  const diff = others.filter(l => l.type !== s.land.type);
+  const chosen = [];
+  if (diff.length) chosen.push(pick(diff));
+  let guard = 0;
+  while (chosen.length < 3 && guard++ < 80){
+    const l = pick(others);
+    if (!chosen.includes(l)) chosen.push(l);
+  }
+  s.routes = chosen.map(l => ({ n: l.n, d: dayFor(s.land, l) }));
+}
+
+function buildState(spec){
+  R = mulberry32(spec.seed);
+
+  const land = spec.land;
+  const raw  = spec.originRaw;
+  const fill = t => String(t).replace(/\{\{地\}\}/g, land.n);
+  const origin = {
+    ...raw,
+    who: fill(raw.who),
+    token: fill(raw.token),
+    scenes: raw.scenes.map(fill)
+  };
+  const talent = spec.talent, curse = spec.curse;
+
+  const s = {
+    seed: spec.seed, turn: 0, deaths: loadDeaths(),
+    name: spec.name,
+    world: spec.world, land, origin, talent, curse,
+    place: land.n, routes: [],
+    sceneIndex: rnd(0, origin.scenes.length - 1),
+    hp: {cur:100, max:100}, mp: {cur:20, max:20},
+    exp: 0, realm: 0,
+    money: Math.max(0, 6 + (spec.world.money || 0) + (origin.money || 0)),
+    attrs: {力:5, 敏:5, 悟:5},
+    equipment: {兵器:null, 护体:null, 佩物:null},
+    inventory: [], buffs: [], flags: {}, _levels: [], _driftTurn: -1,
+    kills: 0, combat: null, over: false,
+    spec
+  };
+  s.scene = origin.scenes[s.sceneIndex];
+
+  for (const [k,v] of Object.entries(origin.bonus || {})) s.attrs[k] += v;
+  applyOps(s, talent.ops, true);
+  if (curse.startOps) applyOps(s, curse.startOps, true);
+
+  s.hp.max = 78 + s.attrs.力 * 3 + (talent.n === '命硬' ? 30 : 0);
+  s.mp.max = 12 + s.attrs.悟 * 3;
+  s.hp.cur = s.hp.max;
+  s.mp.cur = s.mp.max;
+
+  for (const [nm, ct] of (origin.items || [])) addItem(s, nm, ct);
+  addItem(s, '干粮', 1);
+  rollRoutes(s);
+  return s;
+}
+
+function newState(){
+  return buildState(rollSpec());
+}
+
+/* 存储不能当作一定可用：预览面板、无痕窗口、第三方 iframe 里
+   localStorage 访问会直接抛 SecurityError，一旦没兜住，整个开局都起不来 */
+const LS = {
+  get(k, d){
+    try { const v = localStorage.getItem(k); return v === null ? d : v; }
+    catch(e){ return d; }
+  },
+  set(k, v){
+    try { localStorage.setItem(k, String(v)); } catch(e){}
+  }
+};
+
+const loadDeaths = () => parseInt(LS.get('wd_deaths', '0'), 10) || 0;
+const saveDeaths = n => LS.set('wd_deaths', n);
+
+/* ---------- 存档：一世一世地留着，刷新页面不丢 ---------- */
+const RUN_KEY = 'wd_run';
+
+function saveRun(){
+  if (!S || S.over) return;
+  if (!S.turn) return;                 // 还没真正走出第一回，不必存
+  try { LS.set(RUN_KEY, JSON.stringify({ v: 2, at: Date.now(), s: S })); } catch(e){}
+}
+function loadRun(){
+  try {
+    const raw = LS.get(RUN_KEY, '');
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    if (!d || d.v !== 2 || !d.s || d.s.over) return null;
+    return d.s;
+  } catch(e){ return null; }
+}
+function clearRun(){ LS.set(RUN_KEY, ''); }
+
+/* 存档只是一串 JSON，取回来要把「认得出」的东西接回原始资料表：
+   否则身世、天赋、隐患这些对象会变成孤儿副本，悬停详情和重掷都会对不上 */
+function rehydrate(raw){
+  const s = raw;
+  const by = (arr, n) => arr.find(x => x && x.n === n);
+  if (s.world)  s.world  = by(WORLDS, s.world.n)  || s.world;
+  if (s.land)   s.land   = by(LANDS, s.land.n)     || s.land;
+  if (s.talent) s.talent = by(TALENTS, s.talent.n) || s.talent;
+  if (s.curse)  s.curse  = by(MARKS, s.curse.n)    || s.curse;
+  if (s.spec){
+    s.spec.world  = by(WORLDS,  s.spec.world  && s.spec.world.n)  || s.spec.world;
+    s.spec.land   = by(LANDS,   s.spec.land   && s.spec.land.n)   || s.spec.land;
+    s.spec.talent = by(TALENTS, s.spec.talent && s.spec.talent.n) || s.spec.talent;
+    s.spec.curse  = by(MARKS,   s.spec.curse  && s.spec.curse.n)  || s.spec.curse;
+    const o = s.spec.originRaw && s.spec.originRaw.n;
+    s.spec.originRaw = BIRTHS.find(b => b.n === o) || s.spec.originRaw;
+  }
+  for (const it of (s.inventory || [])){
+    const d = ITEMS[it.name];
+    if (d) Object.assign(it, d);
+  }
+  s.buffs = s.buffs || [];
+  s.flags = s.flags || {};
+  s._levels = s._levels || [];
+  s._driftTurn = -1;
+  if (!s.routes || !s.routes.length) rollRoutes(s);
+  R = mulberry32((s.seed || 1) ^ ((s.turn || 0) * 2654435761));
+  return s;
+}
+
+/* =====================================================================
+   状态引擎
+   ===================================================================== */
+function addItem(s, name, n=1){
+  const it = s.inventory.find(i => i.name === name);
+  if (it) it.n += n; else s.inventory.push({name, n, ...(ITEMS[name]||{})});
+}
+function removeItem(s, name, n=1){
+  const it = s.inventory.find(i => i.name === name);
+  if (!it) return false;
+  it.n -= n;
+  if (it.n <= 0) s.inventory = s.inventory.filter(i => i !== it);
+  return true;
+}
+function addBuff(s, name, turns, kind='buff'){
+  const b = s.buffs.find(x => x.name === name);
+  if (b){ b.turns = Math.max(b.turns, turns); return; }
+  s.buffs.push({name, turns, kind});
+}
+const hasBuff = (s,name) => s.buffs.some(b => b.name === name);
+
+function applyOps(s, ops, silent){
+  const log = [];
+  for (const op of (ops || [])){
+    if (!op || !op.t) continue;
+    switch(op.t){
+      case 'hp': {
+        const b = s.hp.cur;
+        s.hp.cur = clamp(s.hp.cur + op.v, 0, s.hp.max);
+        const d = s.hp.cur - b;
+        if (d) log.push({txt:`气血 ${d>0?'+':''}${d}`, dir:d>0?'up':'dn'});
+        break;
+      }
+      case 'mp': {
+        const b = s.mp.cur;
+        s.mp.cur = clamp(s.mp.cur + op.v, 0, s.mp.max);
+        const d = s.mp.cur - b;
+        if (d) log.push({txt:`灵力 ${d>0?'+':''}${d}`, dir:d>0?'up':'dn'});
+        break;
+      }
+      case 'exp': addExp(s, op.v, log); break;
+      case 'money':
+        s.money = Math.max(0, s.money + op.v);
+        log.push({txt:`灵石 ${op.v>0?'+':''}${op.v}`, dir:op.v>0?'up':'dn'});
+        break;
+      case 'item':
+        addItem(s, op.name, op.n||1);
+        log.push({txt:`获得 ${op.name}${(op.n>1)?' ×'+op.n:''}`, dir:'up'});
+        break;
+      case 'drop':
+        removeItem(s, op.name, op.n||1);
+        log.push({txt:`失去 ${op.name}`, dir:'dn'});
+        break;
+      case 'buff':
+        addBuff(s, op.name, op.turns||3, op.kind||'buff');
+        log.push({txt:`状态：${op.name}`, dir:op.kind==='debuff'?'dn':'up'});
+        break;
+      case 'flag': s.flags[op.k] = op.v; break;
+      case 'attr':
+        s.attrs[op.k] = (s.attrs[op.k]||0) + op.v;
+        log.push({txt:`${op.k} +${op.v}`, dir:'up'});
+        break;
+      case 'move': s.place = op.v; break;
+      case 'equip': {
+        const it = s.inventory.find(i => i.name === op.name);
+        if (!it) break;
+        const slot = it.slot || (it.atk ? '兵器' : it.def ? '护体' : '佩物');
+        if (s.equipment[slot]) addItem(s, s.equipment[slot]);
+        s.equipment[slot] = op.name;
+        removeItem(s, op.name);
+        log.push({txt:`装备 ${op.name}`, dir:'up'});
+        break;
+      }
+      case 'heal':
+        s.hp.cur = s.hp.max; s.mp.cur = s.mp.max;
+        log.push({txt:'气血与灵力尽复', dir:'up'});
+        break;
+    }
+  }
+  if (!silent && log.length) printDelta(log);
+  if (!silent && s._levels && s._levels.length){
+    for (const r of s._levels){
+      printAnchor('修为精进 · ' + r);
+      if (REALM_LINE[r]) print(REALM_LINE[r]);
+    }
+    s._levels.length = 0;
+  }
+  return log;
+}
+
+function addExp(s, n, log){
+  if (hasBuff(s, '悟道')) n = Math.round(n * 1.2);
+  s.exp += n;
+  if (log) log.push({txt:`修为 +${n}`, dir:'up'});
+  s._levels = s._levels || [];
+  while (s.realm < REALMS.length-1 && s.exp >= REALM_EXP[s.realm]){
+    s.exp -= REALM_EXP[s.realm];
+    s.realm++;
+    s.hp.max += 14; s.mp.max += 9;
+    s.hp.cur = s.hp.max; s.mp.cur = s.mp.max;
+    s.attrs.力 += 1; s.attrs.悟 += 1;
+    s._levels.push(REALMS[s.realm]);
+  }
+}
+
+const weaponAtk = s => s.equipment['兵器'] ? (ITEMS[s.equipment['兵器']]?.atk || 0) : 0;
+const armorDef  = s => s.equipment['护体'] ? (ITEMS[s.equipment['护体']]?.def || 0) : 0;
+
+/* =====================================================================
+   渲染
+   ===================================================================== */
+const logEl = $('#log');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* 自动跟随：只有玩家本来就在底部时才滚动，免得看到一半被拽回去 */
+let stickBottom = true;
+function atBottom(){
+  return logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 60;
+}
+function scrollToLatest(){
+  stickBottom = true;
+  logEl.scrollTop = logEl.scrollHeight;
+  const jump = document.getElementById('jump');
+  if (jump) jump.classList.remove('on');
+}
+function refreshJump(){
+  const jump = document.getElementById('jump');
+  if (!jump) return;
+  jump.classList.toggle('on', !stickBottom);
+}
+logEl.addEventListener('scroll', () => {
+  stickBottom = atBottom();
+  refreshJump();
+});
+
+function push(cls, html, isText){
+  // 追加前先看玩家离底部有多远：在底部才跟随，翻旧文时不动
+  const follow = atBottom();
+  const d = document.createElement('div');
+  d.className = 'entry ' + cls;
+  if (isText) d.textContent = html; else d.innerHTML = html;
+  logEl.appendChild(d);
+  if (follow){
+    stickBottom = true;
+    logEl.scrollTop = logEl.scrollHeight;
+    // 布局偶尔慢一拍（iframe / 字体未就绪），下一帧再补一次
+    if (typeof requestAnimationFrame === 'function'){
+      requestAnimationFrame(() => { if (stickBottom) logEl.scrollTop = logEl.scrollHeight; });
+    }
+  } else {
+    stickBottom = false;
+    refreshJump();
+  }
+  return d;
+}
+const print = t => push('narr', t, true);
+const printAnchor = t => push('anchor', t, true);
+const printYou = t => push('you', `<span>${esc(t)}</span>`, false);
+function printDelta(list){
+  const body = list.map(x => `<span class="${x.dir}">${esc(x.txt)}</span>`).join('<span class="sep">·</span>');
+  push('delta', body, false);
+}
+
+/* 轻提示：任何「点了但没发生事」的情况都必须说话，不能静默 */
+let flashTimer = null;
+function flash(msg){
+  let f = document.getElementById('flash');
+  if (!f){
+    f = document.createElement('div');
+    f.id = 'flash'; f.className = 'flash';
+    const box = document.getElementById('choices');
+    if (box && box.parentNode) box.parentNode.insertBefore(f, box);
+    else document.body.appendChild(f);
+  }
+  f.textContent = msg;
+  f.classList.add('on');
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => f.classList.remove('on'), 2400);
+}
+function nudgeInput(){
+  const inp = $('#cmd');
+  if (!inp) return;
+  inp.classList.remove('err');
+  void inp.offsetWidth;
+  inp.classList.add('err');
+  setTimeout(() => inp.classList.remove('err'), 400);
+  try { inp.focus(); } catch(e){}
+}
+
+function render(){
+  $('#meta').textContent = `第 ${S.deaths+1} 世 · 第 ${S.turn} 回`;
+  $('#pName').textContent = S.name;
+  $('#pOrigin').textContent = `${S.world.n} · ${S.land.n} · ${S.origin.n}`;
+  $('#pRealm').textContent = REALMS[S.realm];
+
+  const pct = (a,b) => (b>0 ? clamp(a/b*100,0,100) : 0) + '%';
+  $('#hpBar').style.width = pct(S.hp.cur, S.hp.max);
+  $('#mpBar').style.width = pct(S.mp.cur, S.mp.max);
+  $('#hpTxt').textContent = `${S.hp.cur} / ${S.hp.max}`;
+  $('#mpTxt').textContent = `${S.mp.cur} / ${S.mp.max}`;
+  const need = REALM_EXP[S.realm];
+  $('#expBar').style.width = pct(S.exp, need);
+  $('#expTxt').textContent = `${S.exp} / ${need}`;
+
+  $('#attrs').innerHTML = Object.entries(S.attrs)
+    .map(([k,v]) => `<div class="attr" data-tip="attr:${k}"><span>${k}</span><b>${v}</b></div>`).join('');
+
+  $('#buffs').innerHTML = S.buffs.length
+    ? S.buffs.map(b => `<span class="chip ${b.kind}" data-tip="buff:${esc(b.name)}">${esc(b.name)}<span class="t">${b.turns}</span></span>`).join('')
+    : '<span class="empty-note">无</span>';
+
+  $('#equip').innerHTML = ['兵器','护体','佩物'].map(slot => {
+    const v = S.equipment[slot];
+    const g = v ? ITEMS[v] : null;
+    const b = g ? [g.atk ? `攻 +${g.atk}` : '', g.def ? `防 +${g.def}` : '', g.mpMax ? `灵 +${g.mpMax}` : '']
+      .filter(Boolean).join('  ') : '';
+    return `<div class="row" data-slot="${slot}" data-tip="slot:${slot}">
+      <span class="k">${slot}</span><span class="v ${v?'':'empty'}">${v||'空'}</span>
+      ${b ? `<span class="b">${b}</span>` : ''}</div>`;
+  }).join('');
+  document.querySelectorAll('#equip .row').forEach(el => {
+    el.onclick = () => unequip(el.dataset.slot);
+  });
+
+  $('#inv').innerHTML = S.inventory.length
+    ? S.inventory.map(i => {
+        const usable = !!(i.heal || i.mp);
+        return `<div class="item" data-item="${esc(i.name)}" data-tip="item:${esc(i.name)}">
+          <span class="n">${esc(i.name)}</span><span class="q">×${i.n}</span>
+          ${i.slot ? '<span class="use">装</span>' : usable ? '<span class="use">用</span>' : ''}</div>`;
+      }).join('')
+    : '<span class="empty-note">空</span>';
+  document.querySelectorAll('#inv .item').forEach(el => {
+    const nm = el.dataset.item;
+    const isGear = !!(ITEMS[nm] && ITEMS[nm].slot);
+    el.ondblclick = () => useItem(nm);
+    el.onclick = () => flash(`双击${isGear ? '换上' : '用掉'}「${nm}」。`);
+  });
+
+  // 当前对手
+  const foe = S.combat, fp = $('#foePanel');
+  if (foe){
+    fp.style.display = '';
+    $('#foeName').textContent = foe.name;
+    $('#foeMeta').textContent = `${foe.kind} · ${foe.realmTxt}`;
+    $('#foeBar').style.width = clamp(foe.cur / foe.hp * 100, 0, 100) + '%';
+    $('#foeHp').textContent = `${Math.max(0, Math.ceil(foe.cur))} / ${foe.hp}`;
+    const it = INTENTS[foe.intent] || INTENTS.calm;
+    $('#foeNote').innerHTML = esc(it.t)
+      + (foe.insight ? `<br><span style="color:#8a7340">破绽：${esc(foe.tell)}</span>` : '');
+  } else {
+    fp.style.display = 'none';
+  }
+
+  renderMap();
+  $('#money').textContent = S.money;
+
+  saveRun();
+}
+
+function setChoices(list){
+  const box = $('#choices');
+  box.innerHTML = '';
+  (list||[]).forEach(c => {
+    const label = typeof c === 'string' ? c : c.label;
+    const b = document.createElement('button');
+    b.className = 'choice';
+    b.textContent = label;
+    b.onclick = () => submit(label);
+    box.appendChild(b);
+  });
+}
+
+/* =====================================================================
+   场景库 —— 每个选项都有独立结算
+   ===================================================================== */
+const O = (text, ops, combat) => ({text, ops: ops||[], combat: combat||null});
+
+/* --- 探索 --- */
+const SCENE_FIND = [
+  () => ({
+    text: '雾散了一点。路边有一具被雨水泡软的包袱，绳结还没散。',
+    choices: [
+      {label:'翻开包袱', out: s => chance(0.72)
+        ? O('里面是几件湿透的衣裳，压着一个布包。布包里是碎的银子，还有一小罐没开封的伤药。',
+            [{t:'money',v:rnd(8,16)}, {t:'item',name:'疗伤药',n:1}])
+        : O('你刚解开绳结，包袱底下忽然一沉——是活的。你退开半步，那东西已经站起来了。',
+            [{t:'flag',k:'伏击',v:true}], 'fight')},
+      {label:'绕过去，继续走', out: () => O('你从包袱旁边走过。走了十几步，忍不住回头看了一眼，它还在那儿，没人动过。')}
+    ]
+  }),
+  s => ({
+    text: `你在${s.place}外的乱石堆里看见一截东西，像剑柄，又像枯枝。它半截埋在土里，周围的草都朝外倒着长。`,
+    choices: [
+      {label:'把它拔出来', out: () => chance(0.5)
+        ? O('土松得出奇。拔出来是一把短刀，刃口卷了，但钢是好的。', [{t:'item',name:'破旧短刀'},{t:'exp',v:12}])
+        : O('你使了两次力，土里忽然有东西回拽了一下。你松手，退了半步。', [{t:'hp',v:-6}])},
+      {label:'蹲下仔细看看', out: s => O('那不是剑柄。是根埋了很久的兽骨，被雨水冲出来一半。你看了很久，忽然想起某些走兽的骨头，长法不一样。', [{t:'exp',v:16},{t:'attr',k:'悟',v:1}])},
+      {label:'别多事', out: () => O('你绕开它。走出去很远，草还是朝外倒着。')}
+    ]
+  }),
+  s => ({
+    text: `山道上有一间塌了半边的棚子。门口挂着半块木牌，字被虫蛀掉了，只剩一个「药」字。`,
+    choices: [
+      {label:'进去翻翻', out: s => chance(0.6)
+        ? O('柜子倒在地上，抽屉都空了。但你从墙缝里抠出一个小陶罐，封口的蜡还没裂。', [{t:'item',name:'疗伤药',n:2},{t:'exp',v:10}])
+        : O('你刚跨过门槛，梁上掉下一层灰。灰里有很细的响动。', [{t:'hp',v:-8},{t:'buff',name:'中毒',turns:3,kind:'debuff'}])},
+      {label:'在门外喊一声', out: () => O('没人应。风把木牌吹得转了个方向，「药」字朝着里面。')},
+      {label:'离开', out: () => O('你走开了。身后那半块木牌一直在响。')}
+    ]
+  }),
+  s => ({
+    text: '一队人刚从这条道过去。车辙还新，印子里有血，被车轮压得很淡。',
+    choices: [
+      {label:'顺着车辙追', out: () => O('追出半里，车停在林子里，人不见了。只剩一匹死马，和马上没卸下来的货。', [{t:'money',v:rnd(10,20)},{t:'exp',v:20}], 'fight')},
+      {label:'看看血是谁的', out: () => O('血已经发暗，边缘干得起了壳。按这个干法，至少是一个时辰前的事。人早走远了。', [{t:'exp',v:14}])},
+      {label:'不追', out: () => O('你让开车辙。天开始暗了。')}
+    ]
+  }),
+  s => ({
+    text: '你走到一处岔口。左边是干涸的河床，走起来快；右边是密林，安静得反常。',
+    choices: [
+      {label:'走河床', out: () => chance(0.55)
+        ? O('河床好走。你踩着卵石往下游走了小半个时辰，脚底稳当。', [{t:'exp',v:10}])
+        : O('卵石忽然塌了一片，你摔进一个浅坑里，膝盖磕在石棱上。', [{t:'hp',v:-11}])},
+      {label:'进密林', out: () => O('林子里没有鸟叫。走了几十步，你听见身后有东西踩断了一根枯枝。', [], 'fight')},
+      {label:'先坐下歇一会儿', out: () => O('你靠着石头坐下。风从背后过来，把汗吹干了。', [{t:'hp',v:12},{t:'mp',v:8}], 'rest')}
+    ]
+  }),
+  () => ({
+    text: '你在墙根下发现一个洞，洞口被草盖着，里面透出一点新鲜的土腥味。',
+    choices: [
+      {label:'扒开看看', out: () => chance(0.5)
+        ? O('洞不深。里面有半卷用油布包着的东西，还没烂透。', [{t:'item',name:'残页'},{t:'exp',v:18}])
+        : O('你手伸进去，指尖碰到一片冰凉。那冰凉动了。', [{t:'hp',v:-9},{t:'buff',name:'心魔',turns:3,kind:'debuff'}])},
+      {label:'把土掩回去', out: () => O('你把草拨回去，又压了两块石头。做完这件事，心里莫名松了口气。', [{t:'exp',v:8}])}
+    ]
+  })
+];
+
+/* --- 遭遇 --- */
+const ENEMIES = [
+  {name:'灰狼', kind:'兽', tier:1, weapon:'獠牙与利爪', realmTxt:'野兽，未入道',
+   hp:34, atk:7, def:1, exp:24, loot:['干粮'],
+   desc:'它从灌木里出来，一步没停。',
+   look:'肩胛骨高得吓人，肋骨根根可数。左边嘴角缺一颗牙，颈毛上结着干了的血痂。',
+   tell:'它左前腿有一道旧伤，落地时那一侧偏轻。'},
+
+  {name:'山魈', kind:'异', tier:3, weapon:'长臂与石块', realmTxt:'通了点灵性，说不清几层',
+   hp:52, atk:10, def:2, exp:38, loot:['蛇胆'],
+   desc:'它站起来有两个人高，笑起来牙龈是黑的。',
+   look:'脸上抹着朱砂，抹得很仔细。眼睛却干净得不像野兽——它在看你，像在掂量。',
+   tell:'它怕火。火折子一亮，它退了半步。'},
+
+  {name:'落魄刀客', kind:'人', tier:2, weapon:'一柄卷了刃的单刀', realmTxt:'炼气一层上下',
+   hp:44, atk:9, def:2, exp:32, loot:['破旧短刀'],
+   desc:'他的刀在抖，眼睛没有。',
+   look:'衣裳是好的，鞋底磨穿了。他一直没把刀举到该在的位置——那是饿的，不是怕。',
+   tell:'他横着握刀，路数不对，是半路学的。'},
+
+  {name:'尸傀', kind:'尸', tier:3, weapon:'十指，指甲被削尖过', realmTxt:'不入轮回，无境界可言',
+   hp:62, atk:8, def:4, exp:44, loot:['残页'],
+   desc:'它慢慢转过身。关节响的声音很脆。',
+   look:'裸露的皮肉上有新的针脚，缝得很整齐。有人给它缝过——那人还在附近也说不定。',
+   tell:'它每动一次，膝弯的关节先响。先断腿，它就追不上你。'},
+
+  {name:'毒蛇', kind:'兽', tier:1, weapon:'毒牙', realmTxt:'只是条蛇',
+   hp:22, atk:6, def:0, exp:16, loot:['蛇胆'],
+   desc:'它盘在石头上，舌头一吐一吐。',
+   look:'鳞片发乌，尾尖的颜色是新的——它刚蜕过皮，这时候最躁。',
+   tell:'它出手前，脖子会先立起来。'},
+
+  {name:'黑袍人', kind:'人', tier:4, weapon:'袖里的短刃，还没出鞘', realmTxt:'炼气三层，或许更进一层',
+   hp:72, atk:13, def:3, exp:66, loot:['引气符'],
+   desc:'他把兜帽往上拉了拉，露出下巴上一道疤。',
+   look:'袖口沾着香灰，指节有陈年的旧茧。这不是走江湖的手，是守过什么东西的手。',
+   tell:'他右手一直没离开怀里。真正的杀招不在袖子里。'}
+];
+
+function makeFight(){
+  const e = pick(ENEMIES);
+  return { text: `${e.desc}\n它挡在你前面，没有让路的意思。`, choices: [], fight: e };
+}
+
+/* --- 机缘 --- */
+const SCENE_FORTUNE = [
+  () => ({
+    text: '你在崖下躲雨，忽然听见石头缝里有水声。拨开苔藓，一线泉水从石缝里渗出来，颜色比寻常水清。',
+    choices: [
+      {label:'喝一口', out: () => O('水很凉。咽下去之后，心口那块寒斑的位置，短暂地暖了一下。', [{t:'hp',v:18},{t:'mp',v:12}])},
+      {label:'装进水囊带走', out: () => O('你把水囊灌满。这东西带在身上，或许有用。', [{t:'item',name:'回气散',n:1},{t:'exp',v:8}])},
+      {label:'不喝', out: () => O('你直起身。水声还在身后。')}
+    ]
+  }),
+  () => ({
+    text: '一个瞎眼老头在树下摆了副残局。他不看你，只说：「坐。」',
+    choices: [
+      {label:'坐下和他下完', out: () => O('棋下到一半，你才发现自己一直在走他预设的路。\n\n他最后落了一子，说：「你输了。但你看见了自己的输法。」', [{t:'exp',v:48},{t:'attr',k:'悟',v:1}])},
+      {label:'问他这是什么局', out: () => O('「死局。」他说，「摆在路口，等像你这样的人。」', [{t:'exp',v:14},{t:'mp',v:10}])},
+      {label:'走开', out: () => O('你走开了。他在身后把棋子一颗一颗收回盒里，声音很轻。')}
+    ]
+  }),
+  () => ({
+    text: '你随手翻开一页残卷，上面的字迹像活的一样扭动了一下。',
+    choices: [
+      {label:'再读一遍', out: () => O('第二遍，字稳定下来了。是一段口诀，你读得懂，但不知道为什么读得懂。', [{t:'exp',v:36},{t:'mp',v:16}])},
+      {label:'把残卷收好', out: () => O('你把残卷卷起来，塞进怀里最里层。', [{t:'item',name:'残页'}])}
+    ]
+  }),
+  () => ({
+    text: '夜里有东西落在你额头上。摸起来是凉的，指甲盖大小，黑的，还在轻轻震。',
+    choices: [
+      {label:'握紧它', out: () => O('它在你掌心里震了三下，然后停了。你摊开手，它还在。', [{t:'item',name:'星陨铁·鸣'},{t:'exp',v:30},{t:'flag',k:'鸣',v:true}])},
+      {label:'扔出去', out: () => O('你把它甩向黑暗里。没有落地声。\n\n你躺回去，很久没睡着。', [{t:'mp',v:-5}])},
+      {label:'贴在心口', out: () => O('它贴着你的心跳，震动的频率慢慢和你对上了。然后你听见一个声音，很轻：「……又一个。」', [{t:'item',name:'星陨铁·鸣'},{t:'hp',v:-10},{t:'exp',v:40},{t:'flag',k:'鸣',v:true}])}
+    ]
+  }),
+  () => ({
+    text: '你走到一处没有风的地方。四周静得听得见自己血流的声音，然后你听见了第二个人的心跳。',
+    choices: [
+      {label:'屏住呼吸', out: () => O('第二个心跳也停了。你们一起等了很久。然后它先动了，往远处去了。', [{t:'exp',v:22}])},
+      {label:'顺着声音找', out: () => O('你往前走了三步，声音跟着退了三步。它不想被找到，也不想走。', [{t:'mp',v:-8},{t:'exp',v:30},{t:'buff',name:'心魔',turns:3,kind:'debuff'}])},
+      {label:'立刻退出去', out: () => O('你退出去。风又回来了。', [{t:'exp',v:10}])}
+    ]
+  })
+];
+
+/* --- 交易 --- */
+const SCENE_TRADE = [
+  () => ({
+    text: '一个货郎把担子放下，冲你咧嘴笑。「客官，看看？」担子上摆着药、符、几把旧铁器。',
+    choices: [
+      {label:'看伤药（5 灵石）', out: s => s.money < 5
+        ? O('你摸了摸怀里。货郎看了一眼你的手，笑容没变，把担子往回收了收。')
+        : O('他递过来两罐，说算你便宜点。', [{t:'money',v:-5},{t:'item',name:'疗伤药',n:2}])},
+      {label:'看兵器（12 灵石）', out: s => s.money < 12
+        ? O('你把最便宜的那把掂了掂，又放回去。货郎说：「没钱看什么看。」')
+        : O('是一把铁剑，不算好，但重心正。', [{t:'money',v:-12},{t:'item',name:'铁剑'}])},
+      {label:'摆手走开', out: () => O('他还在身后喊：「客官，回头啊。」')}
+    ]
+  }),
+  () => ({
+    text: '镇口的当铺还开着。掌柜在灯下磨一枚铜钱，磨得很慢。',
+    choices: [
+      {label:'把东西当了', out: s => {
+        const sellable = s.inventory.filter(i => i.name !== '干粮');
+        if (!sellable.length) return O('你翻遍全身，只翻出半块干粮。掌柜看了一眼，把灯拨小了。');
+        const it = sellable[0];
+        removeItem(s, it.name, 1);
+        return O(`掌柜接过${it.name}，对着灯照了照，报了个很低的价。你没还价。`, [{t:'money',v:rnd(6,14)}]);
+      }},
+      {label:'问问收不收残页', out: s => s.inventory.some(i => i.name === '残页')
+        ? O('掌柜的手停了一下。「这东西……」他把话吞回去，「五十。」\n\n你没卖。', [{t:'exp',v:16},{t:'flag',k:'掌柜识货',v:true}])
+        : O('「什么残页？」他抬起头。你说没什么。')},
+      {label:'离开', out: () => O('你走出当铺。身后的灯还亮着。')}
+    ]
+  }),
+  () => ({
+    text: '一个妇人蹲在路边卖野果。她说这些果子是山里摘的，能吃，但吃多了会看见东西。',
+    choices: [
+      {label:'买一把（3 灵石）', out: s => s.money < 3
+        ? O('你把铜板数了两遍，还是不够。她把两颗塞进你手里，说不要钱。', [{t:'item',name:'干粮',n:2}])
+        : O('果子很酸。吃到第三颗，你眼角好像有什么动了一下，回头看，什么都没有。', [{t:'money',v:-3},{t:'mp',v:12},{t:'exp',v:10}])},
+      {label:'问她看见了什么', out: () => O('她抬头看你，眼睛很干净。「看见不该看的。」\n\n她把篮子往怀里搂了搂，不再说话。', [{t:'exp',v:14}])},
+      {label:'不买', out: () => O('你走开了。她在身后小声数着什么。')}
+    ]
+  })
+];
+
+/* --- 人物 --- */
+const SCENE_NPC = [
+  () => ({
+    text: '路上遇到一个背柴的少年。他一直盯着你腰上那处看，看得太久，忘了自己在走路，一脚踢在石头上。',
+    choices: [
+      {label:'问他看什么', out: () => O('「你腰上……在动。」他说完就跑了，柴掉了一地。\n\n你低头看，腰间什么都没有。', [{t:'exp',v:18},{t:'flag',k:'少年',v:true}])},
+      {label:'扶他一把', out: () => O('他躲了一下，还是让你扶了。手心全是汗。「你别往北边去。」他说完就捡起柴跑了。', [{t:'exp',v:12},{t:'flag',k:'北边',v:true}])},
+      {label:'当没看见', out: () => O('你从他身边走过去。他在你身后站了很久。')}
+    ]
+  }),
+  () => ({
+    text: '一个老妇人在路边烧纸。火很小，纸灰打着旋往上走，不落地。她抬头看你：「回来了？」',
+    choices: [
+      {label:'应她一声', out: () => O('她笑了，把手里最后一张纸投进火里。「那就好。」\n\n火忽然旺了一下，然后灭了。', [{t:'exp',v:26},{t:'hp',v:14}])},
+      {label:'说我认错人了', out: () => O('「哦。」她低下头继续烧，「那你是要往哪儿去？」\n\n你没答上来。', [{t:'exp',v:10}])},
+      {label:'站着不动', out: () => O('你们隔着火堆站了很久。她烧完最后一张纸，起身走了，没再看你。', [{t:'mp',v:10}])}
+    ]
+  }),
+  () => ({
+    text: '一个年轻女子倚在桥栏上，手里拎着一只湿透的鞋。她看见你，笑了一下：「你也过不去？」',
+    choices: [
+      {label:'问她桥怎么了', out: () => O('「底下有东西。」她把鞋穿上，「昨天还没有的。」\n\n她走的时候，鞋在地上拖出两道水痕。', [{t:'exp',v:20},{t:'flag',k:'桥下',v:true}])},
+      {label:'下河看看', out: () => O('水不深，冷得刺骨。你摸到桥墩下有一道缝，缝里塞着东西，软的，像布。', [{t:'hp',v:-8},{t:'item',name:'残页'},{t:'exp',v:24}])},
+      {label:'绕路', out: () => O('你绕了很远。天黑之前，你还在河这边。', [{t:'hp',v:-5}])}
+    ]
+  })
+];
+
+/* --- 环境 --- */
+const SCENE_OMEN = [
+  () => ({
+    text: '天色黄得不对。云压得很低，像有人把一张湿纸糊在了天上。',
+    choices: [
+      {label:'加快脚步', out: () => chance(0.6)
+        ? O('你赶在雨前找到了一个山坳。雨下来的时候，你已经在干了。', [{t:'hp',v:8}])
+        : O('雨还是把你浇透了。冷从后颈一路下去。', [{t:'hp',v:-9}])},
+      {label:'找个地方躲', out: () => O('你在岩下坐到雨停。雨声很大，反而让人容易想事情。', [{t:'mp',v:14},{t:'exp',v:10}])},
+      {label:'停下来看看', out: () => O('云底有一道极细的亮线，从左到右，很直。不像是雷。', [{t:'exp',v:22},{t:'flag',k:'天象',v:true}])}
+    ]
+  }),
+  () => ({
+    text: '半夜下起雨。雨水打在瓦上是密的，落在你脸上却是温的。',
+    choices: [
+      {label:'伸手接一点', out: () => O('水是温的，还有一点腥。你把手指拿到鼻下闻了闻，然后擦在衣角上。', [{t:'exp',v:16},{t:'buff',name:'心魔',turns:2,kind:'debuff'}])},
+      {label:'进屋', out: () => O('屋里比外面还冷。你靠在门边，听着雨下了一夜。', [{t:'hp',v:6},{t:'mp',v:8}])},
+      {label:'继续睡', out: () => O('你翻了个身。雨声一直在，梦里也一直在。', [{t:'hp',v:10}])}
+    ]
+  }),
+  () => ({
+    text: '你听见远处有钟声，一下，两下，第三下没有响。',
+    choices: [
+      {label:'数着等第三下', out: () => O('你等了很久。它始终没有响。\n\n后来你才明白，第三下不是给你听的。', [{t:'exp',v:24},{t:'mp',v:-6}])},
+      {label:'朝钟声的方向走', out: () => O('走了半个时辰，钟声没了。前面是一座塌了的庙，钟挂在梁上，绳子断了。', [{t:'exp',v:20},{t:'item',name:'引气符'}])},
+      {label:'捂住耳朵', out: () => O('你捂住耳朵。钟声反而更清楚了，好像就在耳朵里面。', [{t:'mp',v:-10},{t:'hp',v:-5}])}
+    ]
+  }),
+  () => ({
+    text: '路边的草全都朝向同一个方向，而你脚下的风是反的。',
+    choices: [
+      {label:'顺着草的方向走', out: () => O('走了不远，草就恢复正常了。你回过头，来路的草还是倒着的。', [{t:'exp',v:18}])},
+      {label:'逆着走', out: () => O('顶着风走很费力气。你走出百步，忽然觉得有人在背后推你。', [{t:'hp',v:-7},{t:'exp',v:26}])},
+      {label:'原地站一会儿', out: () => O('你站住。风绕着你转了一圈，然后走了。地上的草，慢慢直起来。', [{t:'mp',v:12},{t:'exp',v:14}])}
+    ]
+  })
+];
+
+/* --- 危机 --- */
+const SCENE_CRISIS = [
+  () => ({
+    text: '你脚下一空。地面塌了半尺，底下是空的，能听见远处有细细的流水声。',
+    choices: [
+      {label:'抓住旁边的树根', out: () => O('树根很脆，但撑住了。你把自己拽了上来，手掌磨破一层皮。', [{t:'hp',v:-7}])},
+      {label:'直接跳下去', out: () => O('底下是一条暗河。你落进水里，冷得眼前一白，但活着。\n\n河岸上有东西在发亮。', [{t:'hp',v:-16},{t:'exp',v:30},{t:'item',name:'护身玉'}])},
+      {label:'慢慢往回退', out: () => O('你一寸一寸退回硬地。坑没有再塌，但它在下面响。', [{t:'hp',v:-3}])}
+    ]
+  }),
+  () => ({
+    text: '胸口的寒斑忽然发作，一阵冷从骨头缝里往外冒。你扶住墙，指节发白。',
+    choices: [
+      {label:'咬牙撑过去', out: () => O('你数着自己的呼吸。数到四十七的时候，冷退了。', [{t:'hp',v:-12},{t:'exp',v:18}])},
+      {label:'打坐压一压', out: () => O('你坐下，把那口气留住。冷在胸口转了两圈，慢慢沉下去。', [{t:'hp',v:-5},{t:'mp',v:10},{t:'exp',v:26}])},
+      {label:'找户人家敲门', out: () => O('门开了一条缝。里面的人看了看你的脸，把门关上了。\n\n你在门口坐了一夜。', [{t:'hp',v:-15}])}
+    ]
+  }),
+  () => ({
+    text: '前面传来犬吠，很密。还有人的脚步声，不止一个。',
+    choices: [
+      {label:'躲起来', out: () => O('你缩进路边的石缝里。三个人带着两条狗从你面前过去，其中一个停下来，看了看石缝的方向。\n\n然后他走了。', [{t:'mp',v:-8},{t:'exp',v:16}])},
+      {label:'迎上去', out: () => O('他们没想到你会走出来。为首的那个愣了一下，然后笑了：「省得我们找。」', [], 'fight')},
+      {label:'往回跑', out: () => chance(0.5)
+        ? O('你跑得比他们快。跑出两里地，狗叫声才散。', [{t:'hp',v:-8}])
+        : O('你跑出没多远，侧面撞上一个人。', [{t:'hp',v:-14}], 'fight')}
+    ]
+  })
+];
+
+/* --- 路上：只在行路时出现，写的是「离开」和「还没到」之间那一段 --- */
+const SCENE_ROAD = [
+  () => ({
+    text: '出城的路要绕一段山。走到半山，前面有人蹲在路边，面前摆着一只翻扣的碗。',
+    choices: [
+      {label:'掀开碗', out: () => chance(0.5)
+        ? O('碗底下压着三枚铜钱，和一小块干了的饴糖。摆碗的人已经走了。', [{t:'money',v:3},{t:'item',name:'干粮'}])
+        : O('碗底下什么都没有。你刚要起身，听见背后有人笑了一声。回头看，没有人。', [{t:'hp',v:-5},{t:'exp',v:12}])},
+      {label:'绕过去', out: () => O('你从碗旁边绕过去。走出去很远，那个蹲着的人还在原地。')},
+      {label:'问他这条路通不通', out: () => O('「通。」他没抬头，「就是走过去的人，回来得少。」', [{t:'exp',v:15}])}
+    ]
+  }),
+  () => ({
+    text: '你和一队贩盐的同路走了半日。领头的那个话不多，只在歇脚的时候问了你一句：「往那边去做什么？」',
+    choices: [
+      {label:'说实话说不上来', out: () => O('他笑了一下，从担子里摸出半块饼递给你。「那就走吧。」', [{t:'item',name:'干粮',n:2},{t:'exp',v:16}])},
+      {label:'反问他要往哪儿去', out: () => O('「往南。」他说，「南边的盐贵。」\n\n他没再说别的，但分水的时候，把你那份给足了。', [{t:'hp',v:8},{t:'exp',v:12}])},
+      {label:'借口解手，先走一步', out: () => O('你离开队伍，独自上了前头的路。走了半个时辰，后面传来一声闷响。\n\n你没有回头。', [{t:'mp',v:-6},{t:'exp',v:20}])}
+    ]
+  }),
+  () => ({
+    text: '天黑了，你在路边一间空屋里落脚。屋里有一张床，床板上铺着干草，看得出前不久有人睡过。',
+    choices: [
+      {label:'睡那张床', out: () => O('干草里有一股陈味。你睡到半夜醒了一次，听见有人在外头走动——走了三圈，停下。\n\n然后又走了。', [{t:'hp',v:14},{t:'mp',v:8}])},
+      {label:'靠着门睡', out: () => O('你把门闩上，背贴着门板睡。这一夜睡得浅，但没做梦。', [{t:'hp',v:9}])},
+      {label:'生一堆火，不睡', out: () => O('火烧了一夜。天亮的时候，你在灰里发现几粒不是柴烧出来的东西。', [{t:'exp',v:22},{t:'item',name:'引气符'}])}
+    ]
+  }),
+  () => ({
+    text: '关口拦着。守关的兵不看路引，只看你的手——看有没有茧，茧长在哪儿。',
+    choices: [
+      {label:'塞两块灵石', out: st => st.money < 2
+        ? O('你把口袋翻给他看。他哼了一声，用枪杆把你拨到一边：「蹲着，等下一拨。」', [{t:'hp',v:-4}])
+        : O('他把灵石收进袖里，眼睛看着别处，抬手放你过去。', [{t:'money',v:-2},{t:'exp',v:10}])},
+      {label:'让他看手', out: () => O('他捏着你的手翻了两遍，忽然松开：「走吧。」\n\n你走出去十几步，才听见他在背后说了一句什么，没听清。', [{t:'exp',v:20},{t:'flag',k:'过关被记住',v:true}])},
+      {label:'从关墙塌的那一角翻过去', out: () => chance(0.6)
+        ? O('塌口堆着碎砖，不好走，但没人拦。你翻过去的时候，裤腿划开一道口子。', [{t:'hp',v:-6},{t:'exp',v:14}])
+        : O('砖堆后面蹲着一个人。他站起来的时候，手已经握着东西了。', [], 'fight')}
+    ]
+  })
+];
+
+const FALLBACK = [
+  () => ({text:'你做了。四周没有立刻回应，只有风把你的衣角掀了一下。', choices:[{label:'继续走', out: () => O('路还长。')}]}),
+  () => ({text:'你停在原地，忽然觉得这件事没那么简单。', choices:[{label:'再想想', out: () => O('你想了一会儿，没想出什么。')}]})
+];
+
+/* =====================================================================
+   回合流程
+   ===================================================================== */
+const ANCHORS = {
+  6: s => ({
+    tag: '第 一 章 · 引 路',
+    text: `你在${s.place}外的破庙里烤火。火堆对面不知什么时候坐了个老人，穿得很旧，但袖口干净。\n\n他看你很久，说：「你身上有东西在响。」\n\n他伸出一根手指，指了指你心口。你低头，什么也没看见。`,
+    choices: [
+      {label:'问他听见了什么', out: () => O('「听见你还没长成。」他把火拨了拨，「响说明还活着，不响才麻烦。」', [{t:'exp',v:30},{t:'flag',k:'老人',v:true}])},
+      {label:'把手按在心口', out: () => O('掌心下面是心跳。再往下，好像还有一层更慢的东西在跳。', [{t:'hp',v:-4},{t:'exp',v:26},{t:'mp',v:12}])},
+      {label:'装作没听见', out: () => O('你继续烤火。老人在对面坐了一夜，天亮的时候不见了，火堆边留着一小堆灰，堆得很整齐。', [{t:'exp',v:12},{t:'money',v:10}])}
+    ]
+  }),
+  14: s => ({
+    tag: '第 二 章 · 一 口 气',
+    text: '老人教了你一段口诀，很短，只有三句。他说：「炼气不是吸气，是把那口气留住。」\n\n你照着做。第一次什么都没发生。第二次，你听见自己骨头里有细微的响动，像冰化开。',
+    choices: [
+      {label:'继续练', out: () => O('你练到天亮。第三遍的时候，指尖有一点点热。', [{t:'exp',v:70},{t:'mp',v:20},{t:'buff',name:'悟道',turns:3}])},
+      {label:'问他这算什么', out: () => O('「算你没有白活这些年。」', [{t:'exp',v:50},{t:'attr',k:'悟',v:1}])},
+      {label:'问他是谁', out: () => O('他看着火，很久才说：「我也有过你这个年纪。」\n\n他没有回答别的问题。', [{t:'exp',v:40},{t:'flag',k:'问过名',v:true}])}
+    ]
+  }),
+  22: s => ({
+    tag: '第 三 章 · 山 门 之 外',
+    text: '「往下走，你会碰到一堵墙。」老人把火拨了拨，「墙后面是别人的地方。」\n\n他站起来，走的时候没有脚步声。你回头看火堆，火还是热的。',
+    choices: [
+      {label:'往下走', out: () => O('你收拾东西下山。山口立着一块界碑，字被磨平了，只剩一个「止」的形状。\n\n你跨过去了。', [{t:'item',name:'铁剑'},{t:'exp',v:60},{t:'move',v:'山门之外'}], 'chapter')},
+      {label:'先在庙里歇一夜', out: () => O('你睡了一夜。梦里有人在敲一块铁，敲得很慢。', [{t:'heal'},{t:'exp',v:20}])},
+      {label:'把火埋了再走', out: () => O('你把灰和炭一块块埋进土里。做完这件事，你才觉得可以走了。', [{t:'exp',v:35},{t:'buff',name:'护体',turns:3}])}
+    ]
+  }),
+  32: s => ({
+    tag: '第 四 章 · 拦 路 的 人',
+    text: '山道上有个人拦着，穿黑衣，站得很稳。\n\n「东西在你身上。」他说，「这不是问句。」',
+    choices: [
+      {label:'先动手', out: () => O('你没等他说完。他退了半步，手从怀里出来的时候，带着刀。', [], 'boss')},
+      {label:'问他是什么东西', out: () => O('「你身上响的那个。」他往前一步，「你不知道？」\n\n你看他的表情，忽然明白他不是在诈你。', [{t:'exp',v:50},{t:'flag',k:'知道鸣',v:true}], 'boss')},
+      {label:'把手伸进怀里', out: () => O('你的手伸进去，摸到的不是武器。他盯着你的手，肩线松了一下。\n\n就是这一下。', [{t:'exp',v:40}], 'boss')}
+    ]
+  }),
+  42: s => ({
+    tag: '第 五 章 · 鸣',
+    text: '黑铁在你掌心里震了一下，然后又是一下。\n\n这一次你听清了，那不是震动。是有人在里面，很轻很慢地，敲。',
+    choices: [
+      {label:'握紧它', out: () => O('它停了。然后整个山谷开始响，像有几千个人同时把手按在了石头上。', [{t:'item',name:'星陨铁·鸣'},{t:'exp',v:120},{t:'flag',k:'鸣响',v:true}])},
+      {label:'把它埋进土里', out: () => O('你挖了一个坑，把它放进去，盖上土。\n\n土在动。你盯着看了很久，它没有停下来。', [{t:'exp',v:90},{t:'hp',v:-10}])},
+      {label:'问它想说什么', out: () => O('你在心里问了一遍。\n\n它没有回答。但你忽然知道了一个数——不是答案，是一个数。三十七。', [{t:'exp',v:110},{t:'flag',k:'三十七',v:true}])}
+    ]
+  })
+};
+
+/* 地形决定这一带能碰到什么：山里多凶险、镇上多买卖、水边多异象。
+   行路之所以有意义，就是因为这张表会跟着换。 */
+const LAND_POOL = {
+  山: {find:30, fortune:14, trade:6,  npc:10, omen:16, fight:1.55},
+  水: {find:22, fortune:16, trade:10, npc:14, omen:19, fight:1.00},
+  镇: {find:20, fortune:12, trade:21, npc:22, omen:11, fight:0.90}
+};
+
+function pickScene(){
+  const s = S;
+  if (s.hp.cur / s.hp.max < 0.32) return chance(0.55) ? pick(SCENE_CRISIS)() : pick(SCENE_FIND)(s);
+
+  const curseDanger = (s.curse && s.curse.mods && s.curse.mods.danger) || 1;
+  const w = LAND_POOL[(s.land && s.land.type) || '镇'] || LAND_POOL.镇;
+  const pool = [
+    [SCENE_FIND, w.find], [SCENE_FORTUNE, w.fortune], [SCENE_TRADE, w.trade],
+    [SCENE_NPC, w.npc], [SCENE_OMEN, w.omen],
+    ['fight', Math.round(18 * (s.world.danger || 1) * curseDanger * w.fight)]
+  ];
+  const total = pool.reduce((a, b) => a + b[1], 0);
+  let r = R() * total;
+  for (const [k, w] of pool){
+    if ((r -= w) <= 0){
+      if (k === 'fight') return makeFight();
+      return pick(k)(s);
+    }
+  }
+  return pick(SCENE_FIND)(s);
+}
+
+/* 章节事件优先于普通场景；行路也走这一处判断，不能让走一步就跳过剧情 */
+function anchorScene(){
+  const a = ANCHORS[S.turn];
+  if (!a) return false;
+  const r = a(S);
+  printAnchor(r.tag);
+  print(r.text);
+  pending = { choices: r.choices };
+  setChoices(r.choices);
+  render();
+  return true;
+}
+
+function showScene(sc){
+  S.turn++;
+
+  if (S.turn >= 50) return ending();
+
+  if (anchorScene()) return;
+
+  if (sc.fight){
+    if (sc.text) print(sc.text);
+    return startCombat(sc.fight, true);
+  }
+
+  print(sc.text);
+  pending = { choices: sc.choices };
+  setChoices(sc.choices);
+  render();
+}
+
+/* ---------- 行路 ---------- */
+function renderMap(){
+  const box = $('#mapList');
+  if (!box || !S) return;
+  if (!S.routes || !S.routes.length) rollRoutes(S);
+
+  const here = (S.place && S.place !== S.land.n)
+    ? `<div class="land here">此刻在 ${esc(S.place)}</div>` : '';
+  const now = `<div class="land now"><span class="n">${esc(S.land.n)}</span><span class="d">${esc(S.land.type)} · 此处</span></div>`;
+  const go = S.routes.map(r => {
+    const l = LANDS.find(x => x.n === r.n);
+    if (!l) return '';
+    return `<div class="land go" data-go="${esc(l.n)}">
+      <span class="n">${esc(l.n)}</span><span class="d">${esc(l.type)} · ${esc(r.d)}</span></div>`;
+  }).join('');
+
+  box.innerHTML = here + now + go
+    + `<div class="land here">点一处地界即可动身，路上耗掉一回</div>`;
+}
+
+function travelTo(target){
+  if (!S || S.over) return flash('这一世已经结束，走不动了。');
+  if (busy) return flash('正在推演这一步，稍等一息。');
+  if (S.combat) return flash('他还在你对面。这时候转身，就是把后背让出去。');
+  if (target.n === S.place) return flash('你就在这儿。');
+
+  const from = S.place;
+  const days = dayFor(S.land, target);
+
+  S.land = target;
+  S.place = target.n;
+  rollRoutes(S);
+
+  // 无论这一回接着撞上什么，先得把「离开」写出来，不能让玩家凭空换了地方
+  printAnchor('行 路');
+  print(`你离开${from}，往${target.n}去。路上走了${days}。\n\n${target.t}`);
+
+  // 走路也要花掉一回：隐患的账照样要还
+  S.turn++;
+  if (S.turn >= 50) return ending();
+  if (anchorScene()){ tickBuffs(S); if (S.hp.cur <= 0) return death(); return; }
+
+  const road = pick(SCENE_ROAD)(S);
+  print(road.text);
+  pending = { choices: road.choices };
+  setChoices(road.choices);
+
+  tickBuffs(S);
+  render();
+  if (S.hp.cur <= 0) return death();
+}
+
+(function bindMap(){
+  const box = document.getElementById('mapList');
+  if (!box) return;
+  box.addEventListener('click', e => {
+    const el = e.target.closest && e.target.closest('[data-go]');
+    if (!el) return;
+    const l = LANDS.find(x => x.n === el.dataset.go);
+    if (l) travelTo(l);
+  });
+})();
+
+/* 场景推进的兜底：任何一次场景生成出错，都不能让界面停在「没有按钮」的死状态 */
+function safeScene(sc){
+  try {
+    showScene(sc || pickScene());
+  } catch (err){
+    console.error('[scene] 生成失败，已回退到安全场景：', err);
+    if (S) S.combat = null;
+    print('你愣了一下神。眼前的景象断了一瞬，又续上了。');
+    pending = { choices: [
+      {label:'往前走', out: () => O('你继续朝前走。脚下的路和刚才没什么两样。', [{t:'exp', v:4}])},
+      {label:'原地站一会儿', out: () => O('你站了一阵。风把衣角吹起来，又放下。', [{t:'hp', v:3}])}
+    ]};
+    setChoices(pending.choices);
+    try { render(); } catch(e){}
+  }
+}
+
+function resolve(out){
+  try {
+    resolveInner(out);
+  } catch (err){
+    console.error('[resolve] 结算出错，已回退：', err);
+    if (S) S.combat = null;
+    pending = null;
+    print('你做了这件事。结果落在什么地方，你说不清。');
+    safeScene();
+  }
+}
+
+function resolveInner(out){
+  const r = typeof out === 'function' ? out(S) : out;
+  if (!r) return;
+  print(r.text);
+  if (r.ops && r.ops.length) applyOps(S, r.ops);
+  tickBuffs(S);
+  render();
+  pending = null;
+
+  if (S.hp.cur <= 0) return death();
+
+  if (r.combat === 'fight') return startCombat(pick(ENEMIES));
+  if (r.combat === 'boss')  return startCombat(bossEnemy());
+
+  setChoices([]);
+  setTimeout(() => safeScene(pickScene()), 220);
+}
+
+function bossEnemy(){
+  return {name:'黑衣拦路人', kind:'人', tier:5, weapon:'一柄很薄的刀', realmTxt:'筑基初期，压着你的境界',
+          hp:110, atk:15, def:5, exp:160, loot:['青锋剑'],
+          desc:'他把刀横在身前。刀身很薄，反光落在你眼睛里。',
+          look:'站得很稳，脚尖朝内扣着。他在等你先动，等得很从容。',
+          tell:'他的刀很薄，怕的是贴身。你退，他就顺；你进，他反而要收刃。'};
+}
+
+/* ---------- 战斗 ---------- */
+const KIND_LINE = {
+  兽: '兽类。不通人言，只按本能动手。',
+  人: '是人。会算计，也会怕。',
+  尸: '尸傀。已经不算活物，不怕疼。',
+  异: '不是寻常活物。'
+};
+
+/* 境界比较用的是「档位」，不是精确等级——玩家看到的是模糊判断 */
+function realmGapTxt(e){
+  const gap = (e.tier || 1) - S.realm;
+  if (gap <= -2) return '远不如你';
+  if (gap === -1) return '逊你一筹';
+  if (gap === 0)  return '与你相若';
+  if (gap === 1)  return '在你之上';
+  return '看不透深浅';
+}
+
+/* 用真实数值反推「这一架打不打得过」，而不是写死一句吓人的话 */
+function foeRead(e){
+  const myHit = Math.max(1, 6 + S.attrs.力 * 1.6 + weaponAtk(S) - (e.def || 0));
+  const myTurns = Math.ceil(e.hp / myHit);
+  const itsHit = Math.max(1, e.atk - armorDef(S));
+  const itsTurns = Math.ceil(S.hp.cur / itsHit);
+  const gap = (e.tier || 1) - S.realm;
+  // 数字上能赢，但境界压着你——不能给出「稳赢」的错觉
+  if (myTurns <= itsTurns - 2 && gap >= 2) return ['能耗死它，但它境界压着你，一失手就翻', 'warn'];
+  if (myTurns <= itsTurns - 2) return ['能打下来，不划算但能赢', 'ok'];
+  if (myTurns <= itsTurns)     return ['会挂彩。能赢，但要吃药', 'warn'];
+  if (myTurns === itsTurns + 1) return ['悬。再挨两下就撑不住', 'warn'];
+  return ['硬拼必死。能跑就跑', 'bad'];
+}
+
+function foeCardHTML(e){
+  const [read, cls] = foeRead(e);
+  return `<div class="foe-card">
+    <div class="foe-top">
+      <span class="tag">遭遇</span><b>${esc(e.name)}</b>
+      <span class="who">${esc(e.kind)} · ${esc(e.realmTxt)}</span>
+    </div>
+    <div class="foe-look">${esc(e.look || e.desc)}</div>
+    <div class="foe-facts">
+      <div class="f"><span class="k">类别</span><span class="v">${KIND_LINE[e.kind] || '看不出来历。'}</span></div>
+      <div class="f"><span class="k">兵器</span><span class="v">${esc(e.weapon || '空手')}</span></div>
+      <div class="f"><span class="k">修为</span><span class="v">${esc(e.realmTxt)}，${realmGapTxt(e)}</span></div>
+      <div class="f"><span class="k">估量</span><span class="v ${cls}">${read}</span></div>
+    </div>
+  </div>`;
+}
+
+/* 对手每一手都有「意图」，玩家先看得见，再决定守、进还是耗 */
+const INTENTS = {
+  heavy: {t:'它憋着一口气，肩背绷紧了——这一下会很重。', mult:1.45},
+  quick: {t:'它换了个轻的步子，想抢在你前头。', mult:0.80},
+  wait:  {t:'它不动，只是看着你。像在等什么。', mult:0.55},
+  calm:  {t:'它脚跟踩稳了地，不急。', mult:1.00}
+};
+
+function rollIntent(e){
+  const r = R();
+  if (e.kind === '尸') return r < 0.45 ? 'heavy' : r < 0.75 ? 'calm' : 'wait';
+  if (e.kind === '兽') return r < 0.35 ? 'heavy' : r < 0.65 ? 'quick' : r < 0.85 ? 'calm' : 'wait';
+  return r < 0.30 ? 'heavy' : r < 0.60 ? 'calm' : r < 0.85 ? 'quick' : 'wait';
+}
+
+function startCombat(e, quiet){
+  S.combat = { ...e, cur: e.hp, insight: false, intent: rollIntent(e) };
+  push('foe', foeCardHTML(e), false);
+  if (!quiet) print('它挡在你前面，没有让路的意思。');
+  setChoices(combatMenu());
+  render();
+}
+const COMBAT_CHOICES = ['出剑', '守势', '用法术', '吃药', '跑路', '观察'];
+const combatMenu = () => (S && S.combat && S.combat.insight)
+  ? ['出剑', '守势', '用法术', '吃药', '跑路']
+  : COMBAT_CHOICES;
+
+/* 逃跑成功率：基础 35% + 敏捷每点 1.5%，再叠加隐患与「记路」的修正 */
+function fleeChance(s){
+  const mod = ((s.curse && s.curse.mods && s.curse.mods.flee) || 0) + (s.flags['记路'] ? 0.2 : 0);
+  return clamp(0.35 + s.attrs.敏 * 0.015 + mod, 0.05, 0.95);
+}
+const dodgeChance = s => clamp(s.attrs.敏 * 1.2, 0, 20);
+
+function combatTurn(cmd){
+  const e = S.combat;
+  const c = cmd.trim();
+
+  if (/跑|逃|退|撤|溜/.test(c)){
+    if (hasBuff(S,'疾行') || chance(fleeChance(S))){
+      print('你转身就跑。身后的动静追了几十步，然后停了。');
+      S.combat = null; tickBuffs(S); render();
+      pending = null; setChoices([]);
+      setTimeout(() => safeScene(pickScene()), 260);
+      return;
+    }
+    print('你没跑掉。它比你想的快。');
+  } else if (/守|挡|格|防/.test(c)){
+    // 守不是白守：换一口灵力，代价是把这一下让给它
+    const gain = 4;
+    const b = S.mp.cur;
+    S.mp.cur = clamp(S.mp.cur + gain, 0, S.mp.max);
+    print(`你不进反退，把架势收了起来。丹田里那口气慢慢回来（灵力 +${S.mp.cur - b}）。`);
+    enemyTurn(e, true);
+    return;
+  } else if (/法术|术|灵力|符/.test(c)){
+    if (S.mp.cur < 8){
+      print('灵力不够，掌心里只起了一点热，就散了。');
+    } else {
+      S.mp.cur -= 8;
+      let dmg = Math.round((S.attrs.悟 * 2 + rnd(4,9)) * (hasBuff(S,'力竭') ? 0.6 : 1)) - Math.floor(e.def/2);
+      dmg = Math.max(1, dmg);
+      e.cur -= dmg;
+      print(`你捏了个诀。空气里有一声闷响，${e.name}被推开半步（-${dmg}）。`);
+      if (e.cur <= 0) return combatWin();
+    }
+  } else if (/吃药|丹|药|用/.test(c)){
+    const pill = S.inventory.find(i => i.heal);
+    if (!pill){
+      print('你摸了摸怀里，什么也没有。');
+    } else {
+      let h = pill.heal || 0;
+      if (S.flags['药引']) h = Math.round(h*1.5);
+      removeItem(S, pill.name);
+      S.hp.cur = clamp(S.hp.cur + h, 0, S.hp.max);
+      print(`你吞下${pill.name}，喉咙发烫（气血 +${h}）。`);
+      printDelta([{txt:`气血 +${h}`, dir:'up'}, {txt:`失去 ${pill.name}`, dir:'dn'}]);
+    }
+  } else {
+    // 出剑 / 观察
+    if (/看|观察|打量|瞧/.test(c) && e.insight){
+      print(`你已经看透${e.name}的路数了。`);
+      return;
+    }
+    if (/看|观察|打量|瞧/.test(c)){
+      print(e.tell || '你看不出什么。');
+      printDelta([{txt:`看穿了${e.name}`, dir:'up'}]);
+      e.insight = true;
+      render();
+      return enemyTurn(e);
+    }
+
+    let base = 6 + S.attrs.力 * 1.6 + weaponAtk(S);
+    if (hasBuff(S,'力竭')) base *= 0.6;
+    if (e.insight) base *= 1.25;                 // 看穿之后照着破绽打，才配得上那一回合
+    let dmg = Math.round(base * (0.85 + R()*0.3)) - (e.def || 0);
+    if (S.flags['暴击'] && chance(0.18)){ dmg = Math.round(dmg*1.9); print('你抓住了它的空当。'); }
+    if (S.flags['剑骨'] && weaponAtk(S)) dmg += 3;
+    dmg = Math.max(1, dmg);
+    e.cur -= dmg;
+    print(e.insight
+      ? `你照着看穿的破绽递进去，${e.name}没来得及收（-${dmg}）。`
+      : `你出手，${e.name}硬吃了这一下（-${dmg}）。`);
+    if (e.cur <= 0) return combatWin();
+  }
+
+  enemyTurn(e);
+}
+
+function enemyTurn(e, guard){
+  // 敏捷带来闪避：最多两成几率完全躲开
+  if (chance(dodgeChance(S) / 100)){
+    print(`${e.name}这一下落了空。你侧身让开，衣角带起一阵风。`);
+    e.intent = rollIntent(e);
+    tickBuffs(S); render();
+    if (S.hp.cur <= 0) return death();
+    setChoices(combatMenu());
+    return;
+  }
+
+  const it = INTENTS[e.intent] || INTENTS.calm;
+  let atk = e.atk * (0.85 + R()*0.3) - armorDef(S);
+  atk *= it.mult;
+  if (e.insight) atk *= 0.72;
+  if (guard) atk *= 0.35;
+  if (hasBuff(S,'护体')) atk *= 0.5;
+  const hurt = (S.curse && S.curse.mods && S.curse.mods.dmgIn) || 1;
+  atk *= hurt;
+  atk = Math.max(1, Math.round(atk));
+  const before = S.hp.cur;
+  S.hp.cur = clamp(S.hp.cur - atk, 0, S.hp.max);
+  print(guard
+    ? `${e.name}这一下砸在你的架子上，虎口发麻（气血 -${before - S.hp.cur}）。`
+    : `${e.name}还了一手（气血 -${before - S.hp.cur}）。`);
+  e.intent = rollIntent(e);
+  tickBuffs(S);
+  render();
+  if (S.hp.cur <= 0) return death();
+  setChoices(combatMenu());
+}
+
+function combatWin(){
+  const e = S.combat;
+  S.combat = null;
+  S.kills++;
+  print(`${e.name}倒下去的时候，你听见自己心跳得很响。`);
+  const ops = [{t:'exp', v:e.exp}];
+  const loot = pick(e.loot || []);
+  if (loot) ops.push({t:'item', name:loot, n:1});
+  if (chance(0.45)) ops.push({t:'money', v:rnd(3,10)});
+  applyOps(S, ops);
+  tickBuffs(S);
+  render();
+  setChoices([]);
+  pending = null;
+  setTimeout(() => safeScene(pickScene()), 300);
+}
+
+function tickBuffs(s){
+  const gone = [];
+  for (const b of [...s.buffs]){
+    if (b.name === '中毒') s.hp.cur = clamp(s.hp.cur-4, 0, s.hp.max);
+    if (b.name === '心魔') s.mp.cur = clamp(s.mp.cur-3, 0, s.mp.max);
+    b.turns--;
+    if (b.turns <= 0){ s.buffs = s.buffs.filter(x => x !== b); gone.push(b.name); }
+  }
+  if (gone.length) printDelta(gone.map(n => ({txt:`「${n}」散了`, dir:'up'})));
+
+  // 隐患的持续代价：同一回合内只结算一次
+  const d = s.curse && s.curse.drift;
+  if (d && d.every && s.turn > 0 && s.turn % d.every === 0 && s._driftTurn !== s.turn){
+    s._driftTurn = s.turn;
+    const log = [];
+    if (d.hp){ const b = s.hp.cur; s.hp.cur = clamp(s.hp.cur + d.hp, 0, s.hp.max); const dd = s.hp.cur - b; if (dd) log.push({txt:`${s.curse.n} 气血 ${dd}`, dir:'dn'}); }
+    if (d.mp){ const b = s.mp.cur; s.mp.cur = clamp(s.mp.cur + d.mp, 0, s.mp.max); const dd = s.mp.cur - b; if (dd) log.push({txt:`${s.curse.n} 灵力 ${dd}`, dir:'dn'}); }
+    if (log.length) printDelta(log);
+  }
+}
+
+/* =====================================================================
+   输入
+   ===================================================================== */
+function submit(raw){
+  if (busy) return flash('正在推演这一步，稍等一息。');
+  if (!S) return flash('开局还没生成，点右上角「重新轮回」再试一次。');
+  if (S.over) return flash('这一世已经结束，点右上角「重新轮回」再来。');
+
+  const cmd = (raw || '').trim();
+  if (!cmd){
+    flash('先写下你要做的事，或者点上面的选项。');
+    return nudgeInput();
+  }
+
+  $('#cmd').value = '';
+  printYou(cmd);
+
+  if (S.combat){
+    try { return combatTurn(cmd); }
+    catch (err){
+      console.error('[combat] 回合结算出错：', err);
+      print('这一手没能落下。你重新握紧了手里的东西。');
+      if (S.combat) setChoices(combatMenu());
+      return render();
+    }
+  }
+
+  if (pending){
+    const hit = pending.choices.find(c => c.label === cmd)
+             || pending.choices.find(c => cmd.includes(c.label) || c.label.includes(cmd));
+    if (hit){
+      if (hit.out) return resolve(hit.out);
+      // 没有结算函数的选项（AI 通道给的）：把选中的话原样交给下一步，不能装作没听见
+      if (LLM.on) return aiAct(hit.label || cmd);
+    }
+  }
+
+  if (LLM.on) return aiAct(cmd);
+
+  if (pending){
+    print(freeform(cmd));
+    const sc = pickScene();
+    pending = null;
+    setChoices([]);
+    setTimeout(() => safeScene(sc), 240);
+    return;
+  }
+
+  safeScene(pickScene());
+}
+
+/* ---------- 真 AI 通道 ---------- */
+const ALLOWED_OPS = new Set(['hp','mp','exp','money','item','drop','buff','attr','flag','heal']);
+
+async function aiAct(cmd){
+  busy = true;
+  setChoices([]);
+  const th = document.createElement('div');
+  th.className = 'entry delta';
+  th.textContent = '……';
+  logEl.appendChild(th);
+  if (stickBottom) logEl.scrollTop = logEl.scrollHeight;
+
+  try {
+    const r = await llmTurn(cmd);
+    th.remove();
+
+    print(r.narrative || '……');
+    const ops = (r.ops || []).filter(o => o && ALLOWED_OPS.has(o.t));
+    if (ops.length) applyOps(S, ops);
+
+    S.turn++;
+    tickBuffs(S);
+    render();
+    pending = null;
+
+    if (S.hp.cur <= 0) return death();
+
+    const ch = (r.choices || []).slice(0, 3);
+    setChoices(ch);
+    pending = { choices: ch.map(c => ({ label: c })) };
+  } catch (err) {
+    th.remove();
+    print('模型没有应声。这一回合交回本地导演。');
+    pending = null;
+    safeScene(pickScene());
+  } finally {
+    busy = false;
+  }
+}
+
+const FREEFORM = [
+  '你做了。没有人看见，风把地上的灰吹开了一线。',
+  '你照自己的想法做了。四周安静了一会儿，然后一切照旧。',
+  '这件事没什么反应。你站在原地，觉得有点傻。',
+  '你试了。结果和你想的不太一样，但也不算坏。',
+  '你动手的时候，忽然意识到自己已经很久没有这样随意地做过一件事了。',
+  '你做了。做完之后，你在原地站了一会儿。'
+];
+function freeform(cmd){
+  if (/拔|出鞘|挥|砍/.test(cmd)) return '你握紧手里的东西，往前虚劈了一下。空气被切开的声音很轻。';
+  if (/喊|叫|吼/.test(cmd)) return '你喊了一声。回声比你想的短，好像被什么东西吃掉了后半句。';
+  if (/哭|笑|叹/.test(cmd)) return '你笑了一下。自己都觉得奇怪，但确实笑了。';
+  if (/拿|取|摸/.test(cmd)) return '你伸手过去。指尖先碰到的东西，不是你预期的那个温度。';
+  return pick(FREEFORM);
+}
+
+/* =====================================================================
+   死亡 / 结局
+   ===================================================================== */
+function death(){
+  S.over = true; S.combat = null;
+  clearRun();
+  S.deaths++; saveDeaths(S.deaths);
+  print('你的气血耗尽了。');
+  printAnchor('轮 回');
+
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <h2>道 消</h2>
+    <p>${esc(S.name)}，${esc(S.origin.n)}。<br>走过 ${S.turn} 回，斩 ${S.kills} 物，止于 ${esc(REALMS[S.realm])}。</p>
+    <div class="totals">
+      <div>轮回<b>${S.deaths}</b></div>
+      <div>回数<b>${S.turn}</b></div>
+      <div>境界<b>${S.realm}</b></div>
+    </div>
+    <button class="btn" id="again" style="padding:11px 30px;font-size:14px">再入轮回</button>`;
+  $('.stage').appendChild(ov);
+  $('#again').onclick = () => { ov.remove(); start(); };
+  setChoices([]);
+}
+
+function ending(){
+  S.over = true;
+  clearRun();
+  print('你把那块黑铁按在心口。它还在敲。\n\n你忽然明白，那不是在叫你，是在数——数还有多少个像你一样的人，走到了这里。\n\n你没有再往前走。你坐下来，把它埋进了土里。');
+  printAnchor('终');
+
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <h2>暂 且 到 此</h2>
+    <p>骨架跑完了。<br>现在真正的问题是：<br>它有没有让你想再来一次。</p>
+    <div class="totals">
+      <div>回数<b>${S.turn}</b></div>
+      <div>境界<b>${esc(REALMS[S.realm])}</b></div>
+      <div>斩获<b>${S.kills}</b></div>
+    </div>
+    <button class="btn" id="again" style="padding:11px 30px;font-size:14px">再来一世</button>`;
+  $('.stage').appendChild(ov);
+  $('#again').onclick = () => { ov.remove(); start(); };
+  setChoices([]);
+}
+
+/* =====================================================================
+   物品点击使用
+   ===================================================================== */
+/* 战斗中翻行囊、换兵器都要付一次出手的代价，否则等于白嫖一回合 */
+function costTurn(){
+  if (S && S.combat && !S.over){
+    print('低头翻行囊的工夫，它已经欺近了半步。');
+    enemyTurn(S.combat);
+  }
+}
+
+function equipItem(name){
+  if (!S || S.over) return;
+  const it = S.inventory.find(i => i.name === name);
+  if (!it || !it.slot) return;
+  const slot = it.slot;
+  const old = S.equipment[slot];
+  if (old === name){ flash(`「${name}」已经在身上了。`); return; }
+
+  removeItem(S, name);
+  S.equipment[slot] = name;
+  if (old) addItem(S, old);
+
+  const dMp = (ITEMS[name].mpMax || 0) - (old ? (ITEMS[old].mpMax || 0) : 0);
+  if (dMp){
+    S.mp.max = Math.max(1, S.mp.max + dMp);
+    S.mp.cur = clamp(S.mp.cur, 0, S.mp.max);
+  }
+
+  const gain = [it.atk ? `攻击 +${it.atk}` : null, it.def ? `防御 +${it.def}` : null,
+                it.mpMax ? `灵力上限 +${it.mpMax}` : null].filter(Boolean).join('、');
+  print(`你把${name}换上${slot === '兵器' ? '手' : slot === '护体' ? '身' : '身'}${gain ? `（${gain}）` : ''}。`
+        + (old ? `换下来的${old}收进了行囊。` : ''));
+  printDelta([{txt:`${slot}：${name}`, dir:'up'}].concat(old ? [{txt:`卸下 ${old}`, dir:'dn'}] : []));
+  render();
+  costTurn();
+}
+
+function unequip(slot){
+  if (!S || S.over) return;
+  const name = S.equipment[slot];
+  if (!name){ flash(`${slot}这一格是空的。行囊里双击${slot}类的物件就能换上。`); return; }
+  S.equipment[slot] = null;
+  addItem(S, name);
+  const dMp = -(ITEMS[name].mpMax || 0);
+  if (dMp){
+    S.mp.max = Math.max(1, S.mp.max + dMp);
+    S.mp.cur = clamp(S.mp.cur, 0, S.mp.max);
+  }
+  print(`你把${name}卸下来，收进行囊。`);
+  printDelta([{txt:`卸下 ${name}`, dir:'dn'}]);
+  render();
+  costTurn();
+}
+
+function useItem(name){
+  if (!S || S.over) return;
+  const it = S.inventory.find(i => i.name === name);
+  if (!it) return;
+  if (it.slot) return equipItem(name);
+  if (!(it.heal || it.mp)){ flash(`「${name}」不是能用的东西，先收着。`); return; }
+  let h = it.heal || 0, m = it.mp || 0;
+  if (S.flags['药引']){ h = Math.round(h*1.5); m = Math.round(m*1.5); }
+  if (S.flags['铁胃'] && name === '干粮') h = Math.round(h*2);
+  removeItem(S, name);
+  print(`你用掉了${name}。`);
+  applyOps(S, [{t:'hp',v:h},{t:'mp',v:m}].filter(o => o.v));
+  render();
+  costTurn();
+}
+
+/* =====================================================================
+   AI 接入（可选）
+   ===================================================================== */
+const LLM = {
+  on: false, base: '', key: '', model: 'deepseek-chat',
+  load(){
+    try{
+      const c = JSON.parse(LS.get('wd_llm', '{}') || '{}');
+      Object.assign(this, c);
+    }catch(e){}
+  },
+  save(){
+    LS.set('wd_llm', JSON.stringify({on:this.on, base:this.base, key:this.key, model:this.model}));
+  }
+};
+LLM.load();
+
+function aiPrompt(cmd){
+  const st = {
+    世道:S.world.n, 地界:S.land.n, 姓名:S.name, 出身:S.origin.n,
+    出身描述:S.origin.who, 天赋:S.talent.n, 隐患:S.curse.n, 地点:S.place,
+    回数:S.turn, 境界:REALMS[S.realm],
+    气血:`${S.hp.cur}/${S.hp.max}`, 灵力:`${S.mp.cur}/${S.mp.max}`,
+    修为:`${S.exp}/${REALM_EXP[S.realm]}`, 灵石:S.money, 属性:S.attrs,
+    装备:S.equipment, 行囊:S.inventory.map(i=>`${i.name}x${i.n}`), 玄妙:S.buffs
+  };
+  return `你是文字修仙游戏的叙事引擎。玩家自由输入行动，你判定结果并推进剧情。
+
+【当前状态】
+${JSON.stringify(st, null, 1)}
+
+【玩家行动】${cmd}
+
+【输出】只输出一个 JSON 对象，不要任何其他文字：
+{"narrative":"给玩家看的中文叙事，80-160字，冷峻克制，第二人称",
+ "ops":[{"t":"hp","v":-12},{"t":"item","name":"疗伤药","n":1}],
+ "choices":["选项一","选项二","选项三"]}
+
+【ops 白名单】只能是以下形式，不要发明新类型：
+{"t":"hp","v":数字} {"t":"mp","v":数字} {"t":"exp","v":数字} {"t":"money","v":数字}
+{"t":"item","name":"物品名","n":数量} {"t":"drop","name":"物品名"}
+{"t":"buff","name":"状态名","turns":回合数,"kind":"buff或debuff"}
+{"t":"attr","k":"力|敏|悟","v":数字}
+
+【铁律】
+1. 单次 hp 变化绝对值不超过 40，不要秒杀玩家，也不要无故回满。
+2. narrative 里描述的得失，必须和 ops 一致；没写进 narrative 的不要偷偷加。
+3. 只写玩家能感知到的事，不要解释规则，不要出现数字以外的系统提示。
+4. choices 给 2-3 个，短句，不带序号。`;
+}
+
+async function llmTurn(cmd){
+  const url = (LLM.base || 'https://api.deepseek.com').replace(/\/+$/,'') + '/chat/completions';
+  const res = await fetch(url, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer ' + LLM.key},
+    body: JSON.stringify({
+      model: LLM.model || 'deepseek-chat',
+      messages:[{role:'user', content: aiPrompt(cmd)}],
+      temperature: 0.95,
+      response_format: {type:'json_object'}
+    })
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const data = await res.json();
+  const txt = data.choices?.[0]?.message?.content || '{}';
+  return JSON.parse(txt);
+}
+
+/* =====================================================================
+   启动 —— 先掷开局卷，玩家确认后才进入
+   ===================================================================== */
+function start(opts){
+  openingRolls = 0;
+  pending = null; busy = false;
+  if (!opts || !opts.keep) clearRun();
+
+  try {
+    S = newState();
+  } catch (err){
+    console.error('[start] 开局生成失败：', err);
+    S = null;
+    logEl.innerHTML = '';
+    document.querySelectorAll('.opening').forEach(e => e.remove());
+    print('这一局没能生成。');
+    print('（' + (err && err.message ? err.message : String(err)) + '）');
+    print('可以点下面的按钮再试一次。');
+    const box = $('#choices');
+    box.innerHTML = '';
+    const b = document.createElement('button');
+    b.className = 'choice';
+    b.textContent = '再试一次';
+    b.onclick = () => start();
+    box.appendChild(b);
+    return;
+  }
+
+  logEl.innerHTML = '';
+  setChoices([]);
+  render();
+  showOpening();
+}
+
+const OP_LABEL = {name:'姓名', world:'世道', land:'地界', origin:'身世', talent:'天赋', curse:'隐患'};
+
+function showOpening(focus, msg){
+  document.querySelectorAll('.opening').forEach(e => e.remove());
+
+  const s = S;
+  const rows = [
+    ['world','世道', s.world.n,  false],
+    ['land','地界',  s.land.n,   false],
+    ['origin','身世',s.origin.n, false],
+    ['talent','天赋',s.talent.n, true],
+    ['curse','隐患', s.curse.n,  true]
+  ];
+
+  const el = document.createElement('div');
+  el.className = 'opening';
+  const saved = loadRun();
+  const resumeHTML = saved ? `
+      <button class="op-resume" id="opResume" title="回到上一次离开的地方">
+        <span class="k">未完</span>
+        <span class="v">第 ${saved.turn} 回 · ${esc(REALMS[saved.realm] || '凡人')} · ${esc(saved.place || '')}</span>
+        <span class="go">接着走 →</span>
+      </button>` : '';
+  el.innerHTML = `
+    <div class="op-card">
+      <div class="op-eyebrow">第 ${s.deaths + 1} 世</div>
+      ${resumeHTML}
+      <div class="op-name">
+        <span class="txt">${esc(s.name)}</span>
+        <button class="reroll" data-key="name" title="随机换一个名字">换</button>
+        <button class="reroll edit" id="nameEdit" title="自己起名">改</button>
+      </div>
+      <div class="op-sub">${esc(s.land.n)} · ${esc(s.origin.n)}</div>
+      <div class="op-tags">
+        ${rows.map(([k,label,val,hi]) => `
+          <div class="op-tag" data-row="${k}">
+            <span class="k">${label}</span>
+            <span class="v${hi ? ' hi' : ''}" data-val="${k}">${esc(val)}</span>
+            <button class="reroll" data-key="${k}" title="只换这一项">换</button>
+          </div>`).join('')}
+      </div>
+      <div class="op-quote">${esc(s.origin.who)}</div>
+      <div class="op-actions">
+        <button id="opRoll">全部重掷</button>
+        <button class="primary" id="opGo">就这样开始</button>
+      </div>
+      <div class="op-hint" id="opHint">${msg ? esc(msg) : '每一项都能单独换。点行尾的「换」，只动那一行。'}</div>
+    </div>`;
+  $('.stage').appendChild(el);
+
+  bindOpeningControls(el);
+
+  if (focus) markRow(focus);
+
+  const rs = el.querySelector('#opResume');
+  if (rs) rs.onclick = () => resume();
+
+  $('#opRoll').onclick = () => {
+    openingRolls++;
+    S = newState();
+    render();
+    showOpening(null, `已整卷重掷 ${openingRolls} 次。`);
+  };
+  $('#opGo').onclick = () => { el.remove(); begin(); };
+}
+
+function bindOpeningControls(root){
+  root = root || document;
+  root.querySelectorAll('.reroll[data-key]').forEach(b => {
+    b.onclick = e => { e.stopPropagation(); rerollOne(b.dataset.key); };
+  });
+  const edit = root.querySelector('#nameEdit');
+  if (edit) edit.onclick = e => { e.stopPropagation(); openNameEdit(); };
+
+  root.querySelectorAll('.op-tag, .op-name').forEach(row => {
+    if (row.dataset.tipBound) return;
+    row.dataset.tipBound = '1';
+    const key = row.dataset.row || 'name';
+    row.addEventListener('mouseenter', () => openTip(key, row));
+    row.addEventListener('mouseleave', closeTip);
+  });
+}
+
+/* 名字可以自己写 */
+function openNameEdit(){
+  const card = document.querySelector('.opening .op-card');
+  const box = card && card.querySelector('.op-name');
+  if (!box || box.querySelector('input')) return;
+  closeTip();
+
+  box.innerHTML = `<input class="name-input" id="nameInput" maxlength="10"
+      value="${esc(S.name)}" spellcheck="false" autocomplete="off">`;
+  const inp = box.querySelector('#nameInput');
+  try { inp.focus(); inp.select(); } catch(e){}
+
+  let closing = false;
+  const finish = save => {
+    if (closing) return;
+    closing = true;
+    const v = String(inp.value || '').trim().slice(0, 10);
+    if (save && v){
+      S.name = v;
+      if (S.spec) S.spec.name = v;
+      render();
+    }
+    box.innerHTML = `<span class="txt">${esc(S.name)}</span>
+      <button class="reroll" data-key="name" title="随机换一个名字">换</button>
+      <button class="reroll edit" id="nameEdit" title="自己起名">改</button>`;
+    bindOpeningControls(box);
+    if (save && v) updateOpening(null, `名字定下了：${S.name}。`);
+  };
+
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter'){ e.preventDefault(); finish(true); }
+    else if (e.key === 'Escape'){ e.preventDefault(); finish(false); }
+  });
+  inp.addEventListener('blur', () => finish(true));
+}
+
+function markRow(key){
+  const card = document.querySelector('.opening .op-card');
+  if (!card) return;
+  const node = key === 'name'
+    ? card.querySelector('.op-name')
+    : card.querySelector(`.op-tag[data-row="${key}"]`);
+  if (!node) return;
+  node.classList.remove('just');
+  void node.offsetWidth;
+  node.classList.add('just');
+  setTimeout(() => node.classList.remove('just'), 900);
+}
+
+/* 原地刷新卡片文字，不重建 DOM：滚动位置和入场动画都不受影响 */
+function updateOpening(focus, msg){
+  const card = document.querySelector('.opening .op-card');
+  if (!card) return showOpening(focus, msg);
+
+  const s = S;
+  const set = (sel, txt) => { const n = card.querySelector(sel); if (n) n.textContent = txt; };
+  set('.op-eyebrow', `第 ${s.deaths + 1} 世`);
+  set('.op-name .txt', s.name);
+  set('.op-sub', `${s.land.n} · ${s.origin.n}`);
+  set('[data-val="world"]',  s.world.n);
+  set('[data-val="land"]',   s.land.n);
+  set('[data-val="origin"]', s.origin.n);
+  set('[data-val="talent"]', s.talent.n);
+  set('[data-val="curse"]',  s.curse.n);
+  set('.op-quote', s.origin.who);
+  set('#opHint', msg || '');
+
+  render();
+  if (focus) markRow(focus);
+}
+
+/* ---------- 单项重掷 ---------- */
+const pickExcept = (arr, cur) => {
+  const c = arr.filter(x => x !== cur);
+  return pick(c.length ? c : arr);
+};
+
+function rerollOne(key){
+  if (!S || !S.spec) return;
+  const spec = S.spec;
+
+  if (key === 'world'){
+    spec.world = pickExcept(WORLDS, spec.world);
+  } else if (key === 'talent'){
+    spec.talent = pickExcept(TALENTS, spec.talent);
+  } else if (key === 'curse'){
+    spec.curse = pickExcept(MARKS, spec.curse);
+  } else if (key === 'name'){
+    const old = spec.name;
+    for (let i = 0; i < 15; i++){
+      const n = pick(SURNAMES) + pick(GIVEN);
+      if (n !== old){ spec.name = n; break; }
+    }
+  } else if (key === 'land'){
+    const ok = LANDS
+      .filter(l => !spec.originRaw.land || l.type === spec.originRaw.land)
+      .filter(l => l !== spec.land);
+    if (!ok.length){
+      return updateOpening(null, '能和「' + spec.originRaw.n + '」配上的地方只有这一处。先换身世，再换地界。');
+    }
+    spec.land = pick(ok);
+  } else if (key === 'origin'){
+    const ok = BIRTHS.filter(b => (!b.land || b.land === spec.land.type) && b !== spec.originRaw);
+    if (!ok.length){
+      return updateOpening(null, '这一带只养得出这一种人。先换地界，再换身世。');
+    }
+    spec.originRaw = pick(ok);
+  } else {
+    return;
+  }
+
+  spec.seed = Math.floor(Math.random() * 1e9);
+  S = buildState(spec);
+
+  const after = {
+    world: S.world.n, land: S.land.n, origin: S.origin.n,
+    talent: S.talent.n, curse: S.curse.n, name: S.name
+  }[key];
+
+  let msg = `「${OP_LABEL[key]}」换成了「${after}」。`;
+  if (key === 'origin') msg += '随身的家当、属性、开场处境都跟着换了。';
+  if (key === 'land')   msg += '只在与当前身世相配的地方里挑。';
+  if (key === 'talent') msg += '属性与气血上限随之重算。';
+  if (key === 'curse')  msg += '这一世的麻烦换了一种。';
+  if (key === 'world')  msg += '起始灵石和路上的凶险都变了。';
+
+  updateOpening(key, msg);
+}
+
+/* ---------- 悬停详情 ---------- */
+const FLAG_TIP = {
+  '药引':'药力吸收 +50%（回气血、回灵力都更多）',
+  '命硬':'气血上限 +30',
+  '暴击':'18% 几率打出 1.9 倍伤害',
+  '剑骨':'持械伤害 +3',
+  '妖亲':'妖物更少主动扑上来',
+  '铁胃':'吃干粮回的气血翻倍',
+  '夜眼':'夜里不会中伏',
+  '记路':'逃跑成功率 +20%',
+  '手熟':'拓印、修补类行动必定成功'
+};
+
+function tipFor(key){
+  const s = S;
+  if (!s) return '';
+  const L = (k, v) => `<span class="line"><span class="k">${k}</span>${v}</span>`;
+
+  if (key === 'name'){
+    return `<b>${esc(s.name)}</b><span class="line">名字本身不带来什么。但别人会这样叫你。</span>`;
+  }
+  if (key === 'world'){
+    const m = s.world.money || 0, d = s.world.danger || 1;
+    const flavor = d >= 1.25 ? '很凶险' : d >= 1.1 ? '偏凶' : d > 0.95 ? '寻常' : '相对安稳';
+    return `<b>${esc(s.world.n)}</b>`
+      + L('起始灵石', (m >= 0 ? '+' : '') + m)
+      + L('遇敌概率', '×' + d.toFixed(2) + '（' + flavor + '）')
+      + L('见闻', esc(s.world.t));
+  }
+  if (key === 'land'){
+    const fits = BIRTHS.filter(b => !b.land || b.land === s.land.type).map(b => b.n);
+    return `<b>${esc(s.land.n)}</b>`
+      + L('类型', s.land.type + '地')
+      + L('可落脚', fits.join('、'))
+      + L('见闻', esc(s.land.t));
+  }
+  if (key === 'origin'){
+    const b = s.origin;
+    const attrs = Object.entries(b.bonus || {}).map(([k,v]) => `${k} ${v > 0 ? '+' : ''}${v}`).join('、') || '无额外加成';
+    const items = (b.items || []).map(([n,c]) => `${n}×${c}`).join('、') || '无';
+    return `<b>${esc(b.n)}</b>`
+      + L('属性', attrs)
+      + L('随身', items)
+      + L('灵石', (b.money >= 0 ? '+' : '') + (b.money || 0));
+  }
+  if (key === 'talent'){
+    const eff = (s.talent.ops || []).map(o =>
+      o.t === 'attr' ? `${o.k} ${o.v > 0 ? '+' : ''}${o.v}` : (FLAG_TIP[o.k] || o.k));
+    return `<b>${esc(s.talent.n)}</b>`
+      + L('说明', esc(s.talent.t))
+      + (eff.length ? L('效果', eff.join('、')) : '');
+  }
+  if (key === 'curse'){
+    return `<b>${esc(s.curse.n)}</b>`
+      + L('说明', esc(s.curse.t))
+      + L('代价', esc(s.curse.cost || '还没显形'));
+  }
+  return '';
+}
+
+let tipEl = null;
+function showTip(html, row, align){
+  if (!html) return;
+  if (!tipEl){
+    tipEl = document.createElement('div');
+    tipEl.className = 'tip';
+    document.body.appendChild(tipEl);
+  }
+  tipEl.innerHTML = html;
+  tipEl.classList.add('on');
+
+  const r = row.getBoundingClientRect();
+  const t = tipEl.getBoundingClientRect();
+  let top, left;
+
+  // 右侧状态栏的提示一旦盖在面板上就挡住别的数据，改成整个挪到面板左侧
+  const host = row.closest ? row.closest('.sheet') : null;
+  const edge = host ? host.getBoundingClientRect().left : r.left;
+  if (align === 'left' && edge - t.width - 12 > 8){
+    left = edge - t.width - 12;
+    top = clamp(r.top - 6, 8, Math.max(8, window.innerHeight - t.height - 8));
+  } else {
+    top = r.bottom + 8;
+    if (top + t.height > window.innerHeight - 8) top = Math.max(8, r.top - t.height - 8);
+    left = Math.min(Math.max(8, r.left), Math.max(8, window.innerWidth - t.width - 8));
+  }
+  tipEl.style.top = top + 'px';
+  tipEl.style.left = left + 'px';
+}
+function openTip(key, row){ showTip(tipFor(key), row); }
+function closeTip(){
+  if (tipEl) tipEl.classList.remove('on');
+}
+
+/* =====================================================================
+   状态栏悬停详情：把机制翻成人话，数字实时算，不写死
+   ===================================================================== */
+const ATTR_INFO = {
+  力: s => [
+    ['气血上限', `${s.hp.max}（底数 78 + 力×3，另含天赋与升级）`],
+    ['近身一击', `约 ${Math.round(6 + s.attrs.力 * 1.6 + weaponAtk(s))} 点，浮动 ±15%，再减对方护甲`]
+  ],
+  敏: s => [
+    ['逃跑成功', `${Math.round(fleeChance(s) * 100)}%（基础 35% + 敏×1.5%，含隐患与「记路」）`],
+    ['闪避', `${Math.round(dodgeChance(s))}% 几率完全躲开一击（敏×1.2%，上限 20%）`]
+  ],
+  悟: s => [
+    ['灵力上限', `${s.mp.max}（底数 12 + 悟×3，另含升级与佩物）`],
+    ['法术伤害', `约 ${Math.round(s.attrs.悟 * 2 + 6)} 点，耗灵力 8，再减对方护甲的一半`]
+  ]
+};
+
+const BUFF_INFO = {
+  中毒: '每回合结束气血 -4。会一直掉，直到回合用尽。',
+  心魔: '每回合结束灵力 -3。心不定，气就散。',
+  悟道: '修炼、读书所得的修为 +20%。',
+  护体: '受到的伤害减半。',
+  疾行: '逃跑必定成功。',
+  力竭: '你的每一次出手只发挥六成。'
+};
+
+function itemTip(name){
+  const it = ITEMS[name] || {};
+  const inv = S.inventory.find(i => i.name === name);
+  const L = [];
+  if (it.slot){
+    L.push(['类别', `${it.slot}类装备`]);
+    if (it.atk) L.push(['攻击', `+${it.atk}（近身一击直接加上）`]);
+    if (it.def) L.push(['防御', `+${it.def}（每次挨打先减这么多）`]);
+    if (it.mpMax) L.push(['灵力上限', `+${it.mpMax}`]);
+    L.push(['操作', '双击换上']);
+  } else {
+    let h = it.heal || 0, m = it.mp || 0;
+    const buffed = (S.flags['药引'] && (h || m)) || (S.flags['铁胃'] && name === '干粮');
+    if (S.flags['药引']){ h = Math.round(h * 1.5); m = Math.round(m * 1.5); }
+    if (S.flags['铁胃'] && name === '干粮') h = Math.round(h * 2);
+    if (h) L.push(['回复气血', `+${h}${buffed ? '（已计入天赋加成）' : ''}`]);
+    if (m) L.push(['回复灵力', `+${m}${buffed ? '（已计入天赋加成）' : ''}`]);
+    if (!h && !m) L.push(['用途', '剧情物件，眼下用不上']);
+    else L.push(['操作', '双击用掉']);
+  }
+  if (inv && inv.n > 1) L.push(['持有', `${inv.n} 件`]);
+  if (S.combat) L.push(['注意', '战斗中翻行囊，会让对手多打你一下']);
+  return `<b>${esc(name)}</b>` + L.map(([k,v]) => `<span class="line"><span class="k">${k}</span>${esc(v)}</span>`).join('');
+}
+
+function slotTip(slot){
+  const v = S.equipment[slot];
+  if (!v){
+    const fits = S.inventory.filter(i => ITEMS[i.name] && ITEMS[i.name].slot === slot).map(i => i.name);
+    return `<b>${slot}</b><span class="line">空着。</span>`
+      + `<span class="line"><span class="k">可换</span>${fits.length ? esc(fits.join('、')) + '（双击行囊里的物件）' : '行囊里没有这类东西'}</span>`;
+  }
+  const it = ITEMS[v] || {};
+  const L = [];
+  if (it.atk) L.push(['攻击', `+${it.atk}`]);
+  if (it.def) L.push(['防御', `+${it.def}`]);
+  if (it.mpMax) L.push(['灵力上限', `+${it.mpMax}`]);
+  return `<b>${esc(v)}</b><span class="line"><span class="k">槽位</span>${slot}</span>`
+    + L.map(([k,x]) => `<span class="line"><span class="k">${k}</span>${x}</span>`).join('')
+    + `<span class="line"><span class="k">操作</span>点这一段卸下</span>`;
+}
+
+function sheetTip(key){
+  const s = S;
+  if (!s || !key) return '';
+  const L = (k, v) => `<span class="line"><span class="k">${k}</span>${esc(v)}</span>`;
+
+  if (key.startsWith('attr:')){
+    const a = key.slice(5);
+    const rows = (ATTR_INFO[a] || (() => []))(s);
+    return `<b>${a}　${s.attrs[a]}</b>` + rows.map(([k, v]) => L(k, v)).join('');
+  }
+  if (key.startsWith('buff:')){
+    const name = key.slice(5);
+    const b = s.buffs.find(x => x.name === name);
+    return `<b>${esc(name)}${b ? `　还剩 ${b.turns} 回合` : ''}</b>`
+      + L('效果', BUFF_INFO[name] || '效果未明')
+      + (b && b.kind === 'debuff' ? L('性质', '负面状态，每回合结算一次') : L('性质', '增益状态'));
+  }
+  if (key.startsWith('item:')) return itemTip(key.slice(5));
+  if (key.startsWith('slot:')) return slotTip(key.slice(5));
+
+  if (key === 'bar:hp'){
+    return `<b>气血　${s.hp.cur} / ${s.hp.max}</b>`
+      + L('归零', '这一世就结束了')
+      + L('上限来自', `78 + 力×3${s.talent.n === '命硬' ? ' + 命硬 30' : ''} + 升级所得`)
+      + L('恢复', '吃药、歇脚、突破境界');
+  }
+  if (key === 'bar:mp'){
+    return `<b>灵力　${s.mp.cur} / ${s.mp.max}</b>`
+      + L('消耗', '一次法术耗 8 点')
+      + L('上限来自', '12 + 悟×3 + 升级与佩物')
+      + L('恢复', '打坐、回气散、引气符');
+  }
+  if (key === 'bar:exp'){
+    const need = REALM_EXP[s.realm];
+    return `<b>修为　${s.exp} / ${need}</b>`
+      + L('当前境界', REALMS[s.realm])
+      + L('再攒', `${Math.max(0, need - s.exp)} 点即可突破`)
+      + L('来源', '战斗、探索、机缘，以及「悟道」加成');
+  }
+  if (key === 'money'){
+    return `<b>灵石　${s.money}</b>` + L('用途', '买药、买兵器、过卡子塞红包') + L('来源', '搜刮、战斗、交易');
+  }
+  if (key === 'foe'){
+    const e = s.combat;
+    if (!e) return '';
+    const [read] = foeRead(e);
+    const it = INTENTS[e.intent] || INTENTS.calm;
+    return `<b>${esc(e.name)}　${e.kind} · ${esc(e.realmTxt)}</b>`
+      + L('气血', `${Math.max(0, Math.ceil(e.cur))} / ${e.hp}`)
+      + L('攻击', `${e.atk}（浮动 ±15%，先减你的防御）`)
+      + L('护甲', `${e.def}（你的每一击先减这么多）`)
+      + L('判断', `${realmGapTxt(e)}；${read}`)
+      + L('这一手', `${it.t}（力道 ×${it.mult.toFixed(2)}）`)
+      + (e.insight ? L('弱点', e.tell) : L('弱点', '还没看穿，可先「观察」一回'))
+      + L('守势', '挡下约六成半伤害，换回 4 点灵力');
+  }
+  return '';
+}
+
+/* 事件委托：状态栏每次重绘都不用重新绑定 */
+let tipAnchor = null;
+(function bindSheetTips(){
+  const host = document.getElementById('sheet');
+  if (!host) return;
+  host.addEventListener('mouseover', e => {
+    const el = e.target.closest && e.target.closest('[data-tip]');
+    if (!el || el === tipAnchor) return;
+    const html = sheetTip(el.dataset.tip);
+    if (!html) return;
+    tipAnchor = el;
+    showTip(html, el, 'left');
+  });
+  host.addEventListener('mouseout', e => {
+    const el = e.target.closest && e.target.closest('[data-tip]');
+    if (!el) return;
+    if (e.relatedTarget && el.contains(e.relatedTarget)) return;
+    tipAnchor = null;
+    closeTip();
+  });
+})();
+
+/* ---------- 续上一世 ---------- */
+function resume(){
+  const raw = loadRun();
+  if (!raw){ flash('那一世已经找不回来了。'); return start(); }
+
+  document.querySelectorAll('.opening').forEach(e => e.remove());
+  S = rehydrate(raw);
+  logEl.innerHTML = '';
+  stickBottom = true; busy = false;
+  render();
+
+  printAnchor(`续 · 第 ${S.turn} 回`);
+  print(`你还在${S.place}。${REALMS[S.realm]}，气血 ${S.hp.cur}/${S.hp.max}，灵石 ${S.money}。`);
+
+  if (S.combat){
+    S.combat.insight = !!S.combat.insight;
+    S.combat.intent = S.combat.intent || rollIntent(S.combat);
+    print(`${S.combat.name}还在你对面，没有走。`);
+    push('foe', foeCardHTML(S.combat), false);
+    pending = null;
+    setChoices(combatMenu());
+    return;
+  }
+
+  pending = { choices: [
+    {label:'接着往前走', out: () => O('你接着往前走。路和你离开时一样。', [{t:'exp',v:4}])},
+    {label:'站在原地想一想', out: () => O('你站了一会儿，把这一路的事在心里过了一遍。', [{t:'mp',v:6},{t:'exp',v:6}])}
+  ]};
+  setChoices(pending.choices);
+}
+
+function begin(){
+  logEl.innerHTML = '';
+  stickBottom = true;
+  pending = null; busy = false;
+  render();
+
+  print(`你叫${S.name}。这个名字，是你自己认下的。`);
+  print(`${S.world.t}\n\n${S.land.t}`);
+  print(`${S.origin.who}\n\n${S.origin.token}`);
+  print(S.scene);
+  print(`你身上有一样东西，别人看你的眼神会变——${S.talent.n}。${S.talent.t}\n\n还有一件事，你从没跟人说过。${S.curse.t}`);
+
+  const opener = {
+    text: '你还没决定要做什么。',
+    choices: [
+      {label:'往前走', out: () => O('你朝前走。路是土路，踩上去有点软。', [{t:'exp',v:8}])},
+      {label:'先找个地方歇脚', out: () => O('你找了个背风的墙根坐下。天彻底黑了。', [{t:'hp',v:10},{t:'mp',v:6}])},
+      {label:'看看自己身上有什么', out: s => {
+        const list = s.inventory.map(i => `${i.name}×${i.n}`).join('、') || '什么都没有';
+        return O(`你把东西摊在地上：${list}。\n\n不多，但都是自己的。`, [{t:'exp',v:6}]);
+      }}
+    ]
+  };
+  pending = opener;
+  setChoices(opener.choices);
+}
+
+/* 中文输入法选词时按回车，不能当成「提交」 */
+let imeOn = false;
+$('#cmd').addEventListener('compositionstart', () => { imeOn = true; });
+$('#cmd').addEventListener('compositionend', () => { imeOn = false; });
+$('#cmd').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (imeOn || e.isComposing || e.keyCode === 229)) e.preventDefault();
+});
+
+$('#jump').addEventListener('click', scrollToLatest);
+
+$('#inputbar').addEventListener('submit', e => {
+  e.preventDefault();
+  if (imeOn) return;
+  submit($('#cmd').value);
+});
+
+$('#restart').onclick = () => {
+  if (confirm('重新开始？当前这一世会消失。')) start();
+};
+
+$('#toggleSheet').onclick = () => $('#sheet').classList.toggle('open');
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') $('#sheet').classList.remove('open');
+});
+
+/* --- AI 设置弹窗 --- */
+$('#aiBtn').onclick = () => {
+  const m = document.createElement('div');
+  m.className = 'modal';
+  m.innerHTML = `
+    <div class="card">
+      <h2>接入真 AI</h2>
+      <p>填入任意 OpenAI 兼容接口即可。开启后，玩家自由输入会真正交给模型判定，而不是走本地规则。<br>留空则使用本地导演引擎。</p>
+      <label>接口地址（Base URL）</label>
+      <input id="mBase" placeholder="https://api.deepseek.com" value="${esc(LLM.base)}">
+      <label>API Key</label>
+      <input id="mKey" type="password" placeholder="sk-..." value="${esc(LLM.key)}">
+      <label>模型名</label>
+      <input id="mModel" placeholder="deepseek-chat" value="${esc(LLM.model)}">
+      <div class="row">
+        <button class="btn" id="mCancel">取消</button>
+        <button class="btn" id="mSave" style="color:var(--gold);border-color:var(--gold-dim)">保存并启用</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+  $('#mCancel').onclick = () => m.remove();
+  m.onclick = e => { if (e.target === m) m.remove(); };
+  $('#mSave').onclick = () => {
+    LLM.base = $('#mBase').value.trim();
+    LLM.key = $('#mKey').value.trim();
+    LLM.model = $('#mModel').value.trim() || 'deepseek-chat';
+    LLM.on = !!LLM.key;
+    LLM.save();
+    $('#aiBtn').classList.toggle('on', LLM.on);
+    m.remove();
+    print(LLM.on ? '已接入模型。你接下来说的每句话，都会真的被它听见。' : '已切回本地引擎。');
+  };
+};
+if (LLM.on) $('#aiBtn').classList.add('on');
+
+start();
+</script>
+</body>
+</html>
