@@ -1,5 +1,6 @@
 @echo off
-setlocal
+setlocal EnableDelayedExpansion
+chcp 65001 >nul
 title text-rpg sync
 cd /d "%~dp0"
 
@@ -8,15 +9,21 @@ echo   text-rpg  --^>  GitHub
 echo   --------------------
 echo.
 
+echo   What changed? (one line, Enter = auto message)
+set "msg="
+set /p "msg=  > "
+echo.
+
 echo [1/4] staging ...
 git add -A
 if errorlevel 1 goto failed
 
 echo [2/4] committing ...
-if exist ".commit-msg" (
+if not "!msg!"=="" (
+  >".commit-msg" echo !msg!
   git commit -F ".commit-msg" >nul 2>&1
 ) else (
-  git commit -m "chore: sync %date% %time%" >nul 2>&1
+  git commit -m "chore: sync !date! !time!" >nul 2>&1
 )
 if errorlevel 1 (
   echo       nothing new, skipped
